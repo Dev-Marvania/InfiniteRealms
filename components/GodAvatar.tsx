@@ -7,10 +7,7 @@ import Animated, {
   withTiming,
   withSequence,
   Easing,
-  interpolateColor,
-  cancelAnimation,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
 import { Mood } from '@/lib/useGameStore';
 
@@ -37,38 +34,36 @@ const MOOD_COLORS: Record<Mood, { inner: string; outer: string; ring: string }> 
   },
 };
 
+const SLOW_EASE = Easing.bezier(0.4, 0.0, 0.2, 1.0);
+const FAST_EASE = Easing.bezier(0.4, 0.0, 0.6, 1.0);
+
 export default function GodAvatar({ isThinking, mood }: GodAvatarProps) {
   const breathScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.3);
   const ringScale = useSharedValue(1);
-  const pulseRotation = useSharedValue(0);
 
   useEffect(() => {
-    cancelAnimation(breathScale);
-    cancelAnimation(glowOpacity);
-    cancelAnimation(ringScale);
-
     if (isThinking) {
       breathScale.value = withRepeat(
         withSequence(
-          withTiming(1.12, { duration: 300, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.95, { duration: 300, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.12, { duration: 300, easing: FAST_EASE }),
+          withTiming(0.95, { duration: 300, easing: FAST_EASE }),
         ),
         -1,
         true,
       );
       glowOpacity.value = withRepeat(
         withSequence(
-          withTiming(0.8, { duration: 250 }),
-          withTiming(0.2, { duration: 250 }),
+          withTiming(0.8, { duration: 250, easing: Easing.linear }),
+          withTiming(0.2, { duration: 250, easing: Easing.linear }),
         ),
         -1,
         true,
       );
       ringScale.value = withRepeat(
         withSequence(
-          withTiming(1.5, { duration: 600, easing: Easing.out(Easing.ease) }),
-          withTiming(1.0, { duration: 600, easing: Easing.in(Easing.ease) }),
+          withTiming(1.35, { duration: 600, easing: FAST_EASE }),
+          withTiming(1.0, { duration: 600, easing: FAST_EASE }),
         ),
         -1,
         true,
@@ -76,38 +71,30 @@ export default function GodAvatar({ isThinking, mood }: GodAvatarProps) {
     } else {
       breathScale.value = withRepeat(
         withSequence(
-          withTiming(1.06, { duration: 2800, easing: Easing.inOut(Easing.sine) }),
-          withTiming(1.0, { duration: 2800, easing: Easing.inOut(Easing.sine) }),
+          withTiming(1.06, { duration: 2800, easing: SLOW_EASE }),
+          withTiming(1.0, { duration: 2800, easing: SLOW_EASE }),
         ),
         -1,
         true,
       );
       glowOpacity.value = withRepeat(
         withSequence(
-          withTiming(0.5, { duration: 2500 }),
-          withTiming(0.2, { duration: 2500 }),
+          withTiming(0.5, { duration: 2500, easing: Easing.linear }),
+          withTiming(0.2, { duration: 2500, easing: Easing.linear }),
         ),
         -1,
         true,
       );
       ringScale.value = withRepeat(
         withSequence(
-          withTiming(1.2, { duration: 3500, easing: Easing.inOut(Easing.sine) }),
-          withTiming(1.0, { duration: 3500, easing: Easing.inOut(Easing.sine) }),
+          withTiming(1.15, { duration: 3500, easing: SLOW_EASE }),
+          withTiming(1.0, { duration: 3500, easing: SLOW_EASE }),
         ),
         -1,
         true,
       );
     }
   }, [isThinking]);
-
-  useEffect(() => {
-    pulseRotation.value = withRepeat(
-      withTiming(360, { duration: 20000, easing: Easing.linear }),
-      -1,
-      false,
-    );
-  }, []);
 
   const orbStyle = useAnimatedStyle(() => ({
     transform: [{ scale: breathScale.value }],
@@ -123,10 +110,7 @@ export default function GodAvatar({ isThinking, mood }: GodAvatarProps) {
   }));
 
   const outerRingStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: ringScale.value * 1.2 },
-      { rotate: `${pulseRotation.value}deg` },
-    ],
+    transform: [{ scale: ringScale.value * 1.1 }],
     opacity: glowOpacity.value * 0.3,
   }));
 
@@ -135,11 +119,11 @@ export default function GodAvatar({ isThinking, mood }: GodAvatarProps) {
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.outerRing, outerRingStyle]}>
-        <View style={[styles.outerRingInner, { borderColor: moodColors.ring }]} />
+        <View style={[styles.outerRingCircle, { borderColor: moodColors.ring }]} />
       </Animated.View>
 
       <Animated.View style={[styles.ring, ringStyle]}>
-        <View style={[styles.ringInner, { borderColor: moodColors.ring }]} />
+        <View style={[styles.ringCircle, { borderColor: moodColors.ring }]} />
       </Animated.View>
 
       <Animated.View style={[styles.glowWrap, glowStyle]}>
@@ -147,89 +131,93 @@ export default function GodAvatar({ isThinking, mood }: GodAvatarProps) {
       </Animated.View>
 
       <Animated.View style={[styles.orbWrap, orbStyle]}>
-        <LinearGradient
-          colors={[moodColors.inner, moodColors.outer, '#0A0A0F']}
-          start={{ x: 0.3, y: 0.1 }}
-          end={{ x: 0.8, y: 0.9 }}
-          style={styles.orb}
-        />
-        <View style={styles.orbHighlight} />
+        <View style={[styles.orbCore, { backgroundColor: moodColors.outer }]}>
+          <View style={[styles.orbInner, { backgroundColor: moodColors.inner }]} />
+          <View style={styles.orbHighlight} />
+        </View>
       </Animated.View>
     </View>
   );
 }
 
-const ORB_SIZE = 120;
+const S = 110;
 
 const styles = StyleSheet.create({
   container: {
-    width: ORB_SIZE * 2,
-    height: ORB_SIZE * 2,
+    width: S * 2,
+    height: S * 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   orbWrap: {
-    width: ORB_SIZE,
-    height: ORB_SIZE,
-    borderRadius: ORB_SIZE / 2,
-    overflow: 'hidden',
     position: 'absolute',
+    width: S,
+    height: S,
+    borderRadius: S / 2,
   },
-  orb: {
-    width: '100%',
-    height: '100%',
-    borderRadius: ORB_SIZE / 2,
+  orbCore: {
+    width: S,
+    height: S,
+    borderRadius: S / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  orbInner: {
+    width: S * 0.7,
+    height: S * 0.7,
+    borderRadius: S * 0.35,
+    opacity: 0.7,
   },
   orbHighlight: {
     position: 'absolute',
-    top: ORB_SIZE * 0.15,
-    left: ORB_SIZE * 0.2,
-    width: ORB_SIZE * 0.25,
-    height: ORB_SIZE * 0.15,
-    borderRadius: ORB_SIZE * 0.1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    top: S * 0.18,
+    left: S * 0.22,
+    width: S * 0.22,
+    height: S * 0.12,
+    borderRadius: S * 0.08,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   glowWrap: {
     position: 'absolute',
-    width: ORB_SIZE * 1.6,
-    height: ORB_SIZE * 1.6,
-    borderRadius: ORB_SIZE * 0.8,
+    width: S * 1.6,
+    height: S * 1.6,
+    borderRadius: S * 0.8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   glow: {
     width: '100%',
     height: '100%',
-    borderRadius: ORB_SIZE * 0.8,
-    opacity: 0.15,
+    borderRadius: S * 0.8,
+    opacity: 0.12,
   },
   ring: {
     position: 'absolute',
-    width: ORB_SIZE * 1.4,
-    height: ORB_SIZE * 1.4,
-    borderRadius: ORB_SIZE * 0.7,
+    width: S * 1.4,
+    height: S * 1.4,
+    borderRadius: S * 0.7,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ringInner: {
+  ringCircle: {
     width: '100%',
     height: '100%',
-    borderRadius: ORB_SIZE * 0.7,
+    borderRadius: S * 0.7,
     borderWidth: 1.5,
   },
   outerRing: {
     position: 'absolute',
-    width: ORB_SIZE * 1.8,
-    height: ORB_SIZE * 1.8,
-    borderRadius: ORB_SIZE * 0.9,
+    width: S * 1.75,
+    height: S * 1.75,
+    borderRadius: S * 0.875,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  outerRingInner: {
+  outerRingCircle: {
     width: '100%',
     height: '100%',
-    borderRadius: ORB_SIZE * 0.9,
+    borderRadius: S * 0.875,
     borderWidth: 1,
-    borderStyle: 'dashed',
   },
 });

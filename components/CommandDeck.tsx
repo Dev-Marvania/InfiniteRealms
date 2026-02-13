@@ -4,7 +4,7 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  Keyboard,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -23,6 +23,14 @@ interface CommandDeckProps {
   disabled: boolean;
 }
 
+function tryHaptic(style: Haptics.ImpactFeedbackStyle) {
+  try {
+    Haptics.impactAsync(style);
+  } catch {}
+}
+
+const EASE = Easing.bezier(0.4, 0.0, 0.2, 1.0);
+
 export default function CommandDeck({ onSend, disabled }: CommandDeckProps) {
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
@@ -32,18 +40,18 @@ export default function CommandDeck({ onSend, disabled }: CommandDeckProps) {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    tryHaptic(Haptics.ImpactFeedbackStyle.Medium);
     onSend(trimmed);
     setText('');
     inputRef.current?.focus();
   };
 
   const handleMicPressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    tryHaptic(Haptics.ImpactFeedbackStyle.Heavy);
     micScale.value = withRepeat(
       withSequence(
-        withTiming(1.2, { duration: 400, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.0, { duration: 400, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.2, { duration: 400, easing: EASE }),
+        withTiming(1.0, { duration: 400, easing: EASE }),
       ),
       -1,
       true,
@@ -66,6 +74,7 @@ export default function CommandDeck({ onSend, disabled }: CommandDeckProps) {
         <View style={styles.inputWrap}>
           <TextInput
             ref={inputRef}
+            testID="command-input"
             style={styles.input}
             placeholder="What is your command?"
             placeholderTextColor={Colors.text.dim}
@@ -90,8 +99,8 @@ export default function CommandDeck({ onSend, disabled }: CommandDeckProps) {
         </Pressable>
 
         <Pressable
+          testID="send-button"
           onPress={handleSend}
-          disabled={!canSend}
           style={[styles.sendBtn, canSend && styles.sendBtnActive]}
         >
           <Ionicons

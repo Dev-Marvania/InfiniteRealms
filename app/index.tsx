@@ -1,22 +1,15 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
   Pressable,
   Text,
-  Dimensions,
+  ScrollView,
   Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  Easing,
-  FadeIn,
-} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -31,8 +24,6 @@ import WorldMap from '@/components/WorldMap';
 import VisualInventory from '@/components/VisualInventory';
 import StatBars from '@/components/StatBars';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 type BottomTab = 'command' | 'world';
 
 export default function GameScreen() {
@@ -42,67 +33,61 @@ export default function GameScreen() {
     new Set(['0,0']),
   );
 
-  const {
-    hp,
-    mana,
-    isThinking,
-    location,
-    inventory,
-    history,
-    currentMood,
-    setThinking,
-    addMessage,
-    setHp,
-    setMana,
-    addItem,
-    setLocation,
-    setMood,
-  } = useGameStore();
+  const hp = useGameStore((s) => s.hp);
+  const mana = useGameStore((s) => s.mana);
+  const isThinking = useGameStore((s) => s.isThinking);
+  const location = useGameStore((s) => s.location);
+  const inventory = useGameStore((s) => s.inventory);
+  const history = useGameStore((s) => s.history);
+  const currentMood = useGameStore((s) => s.currentMood);
 
-  const handleCommand = useCallback(
-    (text: string) => {
-      addMessage({ role: 'user', content: text });
-      setThinking(true);
+  const handleCommand = useCallback((text: string) => {
+    const store = useGameStore.getState();
+    store.addMessage({ role: 'user', content: text });
+    store.setThinking(true);
 
-      const delay = 1200 + Math.random() * 1500;
+    const delay = 1200 + Math.random() * 1500;
 
-      setTimeout(() => {
-        const response = processCommand(text, location);
+    setTimeout(() => {
+      const currentState = useGameStore.getState();
+      const response = processCommand(text, currentState.location);
 
-        addMessage({
-          role: 'god',
-          content: response.narrative,
-          mood: response.mood,
+      currentState.addMessage({
+        role: 'god',
+        content: response.narrative,
+        mood: response.mood,
+      });
+
+      if (response.hpChange !== 0) {
+        currentState.setHp(currentState.hp + response.hpChange);
+      }
+      if (response.manaChange !== 0) {
+        currentState.setMana(currentState.mana + response.manaChange);
+      }
+      if (response.newItem) {
+        currentState.addItem(response.newItem);
+      }
+      if (response.newLocation) {
+        currentState.setLocation(response.newLocation);
+        setVisitedTiles((prev) => {
+          const next = new Set(prev);
+          next.add(`${response.newLocation!.x},${response.newLocation!.y}`);
+          return next;
         });
+      }
 
-        if (response.hpChange !== 0) {
-          setHp(hp + response.hpChange);
-        }
-        if (response.manaChange !== 0) {
-          setMana(mana + response.manaChange);
-        }
-        if (response.newItem) {
-          addItem(response.newItem);
-        }
-        if (response.newLocation) {
-          setLocation(response.newLocation);
-          setVisitedTiles((prev) => {
-            const next = new Set(prev);
-            next.add(`${response.newLocation!.x},${response.newLocation!.y}`);
-            return next;
-          });
-        }
-
-        setMood(response.mood);
-        setThinking(false);
+      currentState.setMood(response.mood);
+      currentState.setThinking(false);
+      try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }, delay);
-    },
-    [location, hp, mana],
-  );
+      } catch {}
+    }, delay);
+  }, []);
 
   const switchTab = (tab: BottomTab) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
     setActiveTab(tab);
   };
 
@@ -118,7 +103,7 @@ export default function GameScreen() {
       />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior="padding"
         keyboardVerticalOffset={0}
       >
@@ -151,6 +136,7 @@ export default function GameScreen() {
                   styles.tab,
                   activeTab === 'command' && styles.tabActive,
                 ]}
+                testID="tab-command"
               >
                 <Ionicons
                   name="game-controller"
@@ -177,6 +163,7 @@ export default function GameScreen() {
                   styles.tab,
                   activeTab === 'world' && styles.tabActive,
                 ]}
+                testID="tab-world"
               >
                 <MaterialCommunityIcons
                   name="map-legend"
@@ -204,8 +191,7 @@ export default function GameScreen() {
                 <CommandDeck onSend={handleCommand} disabled={isThinking} />
               </View>
             ) : (
-              <Animated.ScrollView
-                entering={FadeIn.duration(200)}
+              <ScrollView
                 style={styles.worldScroll}
                 contentContainerStyle={styles.worldContent}
                 showsVerticalScrollIndicator={false}
@@ -217,7 +203,7 @@ export default function GameScreen() {
                 <View style={styles.worldSection}>
                   <VisualInventory items={inventory} />
                 </View>
-              </Animated.ScrollView>
+              </ScrollView>
             )}
           </View>
         </View>
@@ -230,6 +216,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.bg.primary,
+  },
+  flex: {
+    flex: 1,
   },
   screen: {
     flex: 1,
