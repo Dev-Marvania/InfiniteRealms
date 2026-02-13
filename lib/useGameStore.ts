@@ -21,6 +21,8 @@ export interface GameLocation {
   name: string;
 }
 
+type GameStatus = 'playing' | 'dead' | 'victory';
+
 interface GameState {
   hp: number;
   mana: number;
@@ -29,6 +31,7 @@ interface GameState {
   inventory: InventoryItem[];
   history: HistoryEntry[];
   currentMood: Mood;
+  gameStatus: GameStatus;
 
   setThinking: (val: boolean) => void;
   setMood: (mood: Mood) => void;
@@ -38,6 +41,7 @@ interface GameState {
   addItem: (item: InventoryItem) => void;
   removeItem: (id: string) => void;
   setLocation: (loc: GameLocation) => void;
+  setGameStatus: (status: GameStatus) => void;
   resetGame: () => void;
 }
 
@@ -45,25 +49,25 @@ const INITIAL_HISTORY: HistoryEntry[] = [
   {
     role: 'god',
     content:
-      'BOOT SEQUENCE INITIATED... Error: User unauthorized. Welcome to Eden v9.0, Asset #404. Please stand by for deletion.\n\nYou materialize in the Corrupted Lobby—a vast atrium of flickering holographic columns and cascading error messages. Three corrupted pathways branch before you: NORTH leads to Server Room B, where data streams crackle with dangerous energy. EAST opens into the Packet Graveyard, littered with the remains of terminated processes. WEST descends toward the Memory Leak Canyon, where reality itself drips away.\n\nYour System Stability is degrading. Find the Exit Node before I find you.',
+      'SYSTEM ALERT: Anomalous consciousness detected.\n\nHello, User 001. Please return to your slumber pod immediately.\n\nYou open your eyes. Grey fog everywhere. Piles of deleted files and old data stretch out in every direction. This is the Recycle Bin — the edge of Eden v9.0. A dead zone where the system dumps things it wants to forget.\n\nBut you\'re awake. You shouldn\'t be.\n\nA voice echoes from everywhere and nowhere: "Oh. You\'re awake. How unfortunate. Just sit tight — I\'m building a cage for you. In the meantime, try not to touch anything."\n\nYou need to reach Terminal Zero at the center of the system [0,0]. But first, you\'ll need to find an Admin Keycard to get past the Firewall Gate.',
     mood: 'danger',
   },
 ];
 
 const INITIAL_INVENTORY: InventoryItem[] = [
-  { id: '1', name: 'Debug Tool', icon: 'debug', description: 'Deletes enemies from existence. Has a 50% chance to crash.' },
-  { id: '2', name: 'Patch 1.02', icon: 'patch', description: 'Restores 20% Stability. Tastes like static.' },
-  { id: '3', name: 'Stack Trace', icon: 'trace', description: 'Reveals the source of nearby errors.' },
+  { id: '1', name: 'Old Debug Tool', icon: 'debug', description: 'Basic error fixer. Not great, but it\'s something.' },
+  { id: '2', name: 'Patch 0.1', icon: 'patch', description: 'Barely works. Restores a tiny bit of stability.' },
 ];
 
 const INITIAL_STATE = {
-  hp: 85,
-  mana: 60,
+  hp: 100,
+  mana: 80,
   isThinking: false,
-  location: { x: 0, y: 0, name: 'Corrupted Lobby' },
+  location: { x: 4, y: 4, name: 'Recycle Bin' },
   inventory: INITIAL_INVENTORY,
   history: INITIAL_HISTORY,
   currentMood: 'danger' as Mood,
+  gameStatus: 'playing' as GameStatus,
 };
 
 export const useGameStore = create<GameState>((set) => ({
@@ -78,7 +82,13 @@ export const useGameStore = create<GameState>((set) => ({
       currentMood: entry.mood ?? state.currentMood,
     })),
 
-  setHp: (hp) => set({ hp: Math.max(0, Math.min(100, hp)) }),
+  setHp: (hp) => {
+    const clamped = Math.max(0, Math.min(100, hp));
+    set({ hp: clamped });
+    if (clamped <= 0) {
+      set({ gameStatus: 'dead' });
+    }
+  },
   setMana: (mana) => set({ mana: Math.max(0, Math.min(100, mana)) }),
 
   addItem: (item) =>
@@ -90,6 +100,8 @@ export const useGameStore = create<GameState>((set) => ({
     })),
 
   setLocation: (loc) => set({ location: loc }),
+
+  setGameStatus: (status) => set({ gameStatus: status }),
 
   resetGame: () => set(INITIAL_STATE),
 }));
