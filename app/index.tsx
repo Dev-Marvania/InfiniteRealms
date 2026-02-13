@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useGameStore } from '@/lib/useGameStore';
 import { processCommand } from '@/lib/gameEngine';
+import { playSfx, getActionSound } from '@/lib/soundManager';
 import GodAvatar from '@/components/GodAvatar';
 import NarrativeStream from '@/components/NarrativeStream';
 import CommandDeck from '@/components/CommandDeck';
@@ -52,6 +53,11 @@ export default function GameScreen() {
       const currentState = useGameStore.getState();
       const response = processCommand(text, currentState.location);
 
+      const actionSound = getActionSound(response.intent);
+      if (actionSound) {
+        playSfx(actionSound).catch(() => {});
+      }
+
       currentState.addMessage({
         role: 'god',
         content: response.narrative,
@@ -66,6 +72,7 @@ export default function GameScreen() {
       }
       if (response.newItem) {
         currentState.addItem(response.newItem);
+        setTimeout(() => playSfx('item').catch(() => {}), 300);
       }
       if (response.newLocation) {
         currentState.setLocation(response.newLocation);

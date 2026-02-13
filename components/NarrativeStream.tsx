@@ -9,6 +9,7 @@ import {
 import * as Speech from 'expo-speech';
 import Colors from '@/constants/colors';
 import { HistoryEntry } from '@/lib/useGameStore';
+import { startAmbient, stopAmbient } from '@/lib/soundManager';
 
 interface NarrativeStreamProps {
   history: HistoryEntry[];
@@ -80,10 +81,17 @@ function speakText(text: string) {
       .replace(/[_*#]/g, '')
       .trim();
     if (cleanText.length > 0) {
+      startAmbient().catch(() => {});
       Speech.speak(cleanText, {
         language: 'en-US',
         pitch: 0.75,
         rate: 0.85,
+        onDone: () => {
+          stopAmbient().catch(() => {});
+        },
+        onStopped: () => {
+          stopAmbient().catch(() => {});
+        },
       });
     }
   } catch {}

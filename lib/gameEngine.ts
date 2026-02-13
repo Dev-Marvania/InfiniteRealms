@@ -8,6 +8,7 @@ interface GameResponse {
   newItem?: InventoryItem;
   removeItemId?: string;
   newLocation?: GameLocation;
+  intent: string;
 }
 
 const DIRECTIONS: Record<string, { dx: number; dy: number }> = {
@@ -213,6 +214,7 @@ export function processCommand(
         hpChange: 0,
         manaChange: -5,
         newLocation: { x: newX, y: newY, name },
+        intent: 'move',
       };
     }
 
@@ -227,6 +229,7 @@ export function processCommand(
         mood: 'danger',
         hpChange: -damage,
         manaChange: 0,
+        intent: 'attack',
       };
     }
 
@@ -241,6 +244,7 @@ export function processCommand(
           mood: 'mystic',
           hpChange: 0,
           manaChange: -15,
+          intent: 'hack',
         };
       } else {
         const hackNarrative = pick(HACK_NARRATIVES_FAIL);
@@ -251,6 +255,7 @@ export function processCommand(
           mood: 'danger',
           hpChange: -10,
           manaChange: -5,
+          intent: 'hack',
         };
       }
     }
@@ -262,6 +267,7 @@ export function processCommand(
         mood: 'mystic',
         hpChange: 0,
         manaChange: -manaCost,
+        intent: 'magic',
       };
     }
 
@@ -273,6 +279,7 @@ export function processCommand(
         mood: 'neutral',
         hpChange: hpGain,
         manaChange: manaGain,
+        intent: 'rest',
       };
     }
 
@@ -291,6 +298,7 @@ export function processCommand(
           hpChange: 0,
           manaChange: 0,
           newItem: item,
+          intent: 'search',
         };
       }
       return {
@@ -298,6 +306,7 @@ export function processCommand(
         mood: 'neutral',
         hpChange: 0,
         manaChange: 0,
+        intent: 'search',
       };
     }
 
@@ -307,6 +316,7 @@ export function processCommand(
         mood: 'neutral',
         hpChange: 0,
         manaChange: 0,
+        intent: 'unknown',
       };
     }
   }
