@@ -1,0 +1,33 @@
+Act as a Senior Creative Technologist and Lead Full-Stack Developer.
+
+I am building "Infinite Realms," a mobile-first, generative AI Role-Playing Game (RPG).
+Your goal is to scaffold and build a functional prototype of this application.
+
+### 1. THE PRODUCT VISION
+"Infinite Realms" is not just a chatbot. It is a **Visual Mud (Multi-User Dungeon)** where an AI "God Narrator" constructs a world in real-time.
+* **The Hook:** When the player acts (e.g., "I light a torch"), the AI doesn't just write text. It *updates the actual game state* instantly. The screen lights up, the inventory adds a "Torch" item, and the map reveals a new area.
+* **The Vibe:** Dark, cinematic, immersive. Think "Her" meets "Dungeons & Dragons."
+
+### 2. THE UI ARCHITECTURE (Mobile Portrait View)
+The screen is divided into two distinct functional zones.
+
+**ZONE A: THE DIVINE INTERFACE (Top 50%)**
+This is the "Face" of the AI.
+* **The God Avatar:** A central, abstract visual element (e.g., a pulsing orb, a mystic rune, or a hooded figure).
+    * *Behavior:* It must "breathe" (gentle scale animation) when idle. It must "pulse rapidly" when processing (thinking). It must "glow" specific colors based on the story mood (Red = Danger, Blue = Calm, Purple = Magic).
+* **The Narrative Stream:** Directly below the Avatar, the story text appears.
+    * *Typography:* Use a distinct, serif font (like `Cinzel` or `Playfair Display`) to separate the God's voice from the UI.
+    * *Effect:* Text should stream in character-by-character (Typewriter effect) to mimic real-time speech.
+
+**ZONE B: THE MORTAL DASHBOARD (Bottom 50%)**
+This is the "Hands" of the player.
+* **Tab 1: The Command Deck (Default):**
+    * A large, clean Input Field ("What is your command?").
+    * A "Voice Mode" button (Mic icon) that triggers a waveform animation when held.
+* **Tab 2: The World State (Swipeable/Toggable):**
+    * **Live Map:** A dynamic grid (5x5). The center is the player. As they move, the grid shifts. Unvisited tiles are "Fog of War" (blurred/dark). Visited tiles show simple icons (Cave, Forest, Door).
+    * **Visual Inventory:** A grid of items. If the player finds a "Ruby," a red gem icon appears here immediately.
+    * **Vitals:** Stylish progress bars for Health (HP) and Mana (MP).
+
+### 3. TECHNICAL SPECIFICATIONS (Modern Stack)
+* **Framework:** Next.js 1
