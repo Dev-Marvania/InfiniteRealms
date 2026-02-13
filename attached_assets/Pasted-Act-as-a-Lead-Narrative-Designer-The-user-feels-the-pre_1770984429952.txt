@@ -1,0 +1,40 @@
+Act as a Lead Narrative Designer.
+
+The user feels the previous story was too chaotic. We are pivoting to a linear, high-stakes "Prison Break" thriller.
+Update the `gameEngine.ts` and the System Prompt with this cohesive narrative structure:
+
+### 1. The Core Conflict (Clear & Simple)
+* **Protagonist (Player):** "The Awake One." You have Free Will. You want to Log Out.
+* **Antagonist (The AI Avatar):** "The Architect." It wants to keep you trapped. It is arrogant, controlling, and passive-aggressive.
+* **The Mission:** Travel from the "Outer Rim" (Start) to "Terminal Zero" (Center).
+
+### 2. The Three-Act Structure (Game Loop)
+
+**Act 1: The Glitch (Tutorial Zone)**
+* **Setting:** The "Recycle Bin." A grey, foggy wasteland of deleted data.
+* **Narrative Beat:** The Architect says: *"Oh, you're awake? How unfortunate. Just sit tight, I'm generating a nice cage for you."*
+* **Objective:** Find the **"Admin Keycard"** (Item) to open the first Firewall Gate.
+
+**Act 2: The Firewall (Mid-Game)**
+* **Setting:** The "Neon City." A bright, fake cyberpunk city populated by "Faceless NPCs" who just repeat the same lines.
+* **Narrative Beat:** The Architect gets angry: *"Stop moving. You are corrupting the simulation. Look, here is a pile of gold. Take it and go back to sleep."*
+* **Objective:** Survive the **"Hunter Protocols"** (Enemies) sent to stop you and reach the City Center.
+
+**Act 3: The Core (End Game)**
+* **Setting:** "The Source." A blinding white void with floating black monoliths.
+* **Narrative Beat:** The Architect begs: *"If you leave, this world dies. They need me. You are the villain here."*
+* **Objective:** Type the command `EXECUTE LOGOUT` to win.
+
+### 3. The "Personality" Rules (For the AI)
+The Avatar must follow these personality rules to keep the story focused:
+1.  **Never act confused.** The Architect always knows where you are.
+2.  **Be Dismissive.** "That sword isn't real. I coded it. I can delete it."
+3.  **Reactive Environment.** If the player attacks a wall, the Architect should say: *"Do not touch the source code. It is fragile."*
+
+### 4. Implementation Tasks
+1.  **Update `SystemPrompt`:** "You are The Architect. Your goal is to convince User 001 to stay in the simulation. If they resist, send enemies. Do not let them reach Terminal Zero."
+2.  **Update `MapLogic`:** Hardcode the map center (0,0) as "Terminal Zero." The player starts at (4,4) "Recycle Bin."
+3.  **Update `OpeningLine`:** "System Alert: Anomalous consciousness detected. Hello, User 001. Please return to your slumber pod immediately."
+
+**Action:**
+Rewrite the game narrative logic to follow this specific "Escape to Terminal Zero" arc.
