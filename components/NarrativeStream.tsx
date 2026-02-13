@@ -134,7 +134,7 @@ export default function NarrativeStream({ history, isThinking }: NarrativeStream
             ]}
           >
             {isGod && <Text style={styles.godLabel}>{'> THE ARCHITECT'}</Text>}
-            {!isGod && <Text style={styles.userLabel}>{'> ASSET #404'}</Text>}
+            {!isGod && <Text style={styles.userLabel}>{'> USER 001'}</Text>}
             {isGod ? (
               <TypewriterText
                 text={entry.content}

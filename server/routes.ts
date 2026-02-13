@@ -25,7 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error processing game command:", error);
       res.status(500).json({
-        narrative: 'The system shudders. `CRITICAL_ERROR: AI_MODULE_TIMEOUT`.\n\n// THE ARCHITECT: "Even I have limits, Asset #404. Try again."',
+        narrative: 'The system shudders. `CRITICAL_ERROR: AI_MODULE_TIMEOUT`.\n\n// THE ARCHITECT: "Even my systems have limits, User 001. Try again."',
         mood: "danger",
         hpChange: 0,
         manaChange: 0,
