@@ -1,5 +1,7 @@
 # Glitch in the System
 
+> **Play now:** [https://InfiniteRealms.replit.app](https://InfiniteRealms.replit.app)
+
 A mobile-first cyberpunk RPG where you play as **User 001 (The Awake One)**, trapped inside a VR simulation called **Eden v9.0**. An antagonistic AI called **The Architect** controls the simulation and actively tries to keep you trapped. Your mission: escape by reaching **Terminal Zero** at coordinates [0,0] and executing the LOGOUT command.
 
 ## Gameplay
@@ -136,6 +138,10 @@ If running outside of Replit, you'll need to set `AI_INTEGRATIONS_OPENAI_API_KEY
 3. Scan the QR code shown in the terminal
 
 ## Screenshots
+
+<p align="center">
+  <img src="assets/images/screenshot-gameplay.png" alt="Glitch in the System - Gameplay" width="300" />
+</p>
 
 The game features a dark terminal-aesthetic UI split into two zones:
 - **Top half**: The Architect's avatar with mood-reactive glows and typewriter-style narrative text
