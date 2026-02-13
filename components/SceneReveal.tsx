@@ -1,11 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Image, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withDelay,
-  withSequence,
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
@@ -23,7 +22,7 @@ const SCENE_IMAGES: Record<NodeType, any> = {
   terminal: require('../assets/images/scenes/scene_terminal.png'),
 };
 
-const DISPLAY_DURATION = 2800;
+const DISPLAY_DURATION = 3200;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface SceneRevealProps {
@@ -52,33 +51,45 @@ export function getNodeType(x: number, y: number): NodeType {
 }
 
 export default function SceneReveal({ nodeType, locationName, onDismiss }: SceneRevealProps) {
-  const opacity = useSharedValue(0);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const imageOpacity = useSharedValue(0);
   const scale = useSharedValue(1.15);
   const labelOpacity = useSharedValue(0);
-  const scanlineOffset = useSharedValue(0);
 
   useEffect(() => {
-    if (!nodeType) return;
+    setImageLoaded(false);
+    imageOpacity.value = 0;
+    scale.value = 1.15;
+    labelOpacity.value = 0;
 
-    opacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) });
-    scale.value = withTiming(1, { duration: 2000, easing: Easing.out(Easing.cubic) });
-    labelOpacity.value = withDelay(300, withTiming(1, { duration: 400 }));
-    scanlineOffset.value = withTiming(1, { duration: 2000 });
-
-    const dismissTimer = setTimeout(() => {
-      opacity.value = withTiming(0, { duration: 500, easing: Easing.in(Easing.cubic) });
-      labelOpacity.value = withTiming(0, { duration: 300 });
-      scale.value = withTiming(0.95, { duration: 500 });
-      setTimeout(() => {
-        runOnJS(onDismiss)();
-      }, 550);
-    }, DISPLAY_DURATION);
-
-    return () => clearTimeout(dismissTimer);
+    return () => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    };
   }, [nodeType]);
 
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+
+    imageOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
+    scale.value = withTiming(1, { duration: 2500, easing: Easing.out(Easing.cubic) });
+    labelOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
+
+    dismissTimerRef.current = setTimeout(() => {
+      imageOpacity.value = withTiming(0, { duration: 600, easing: Easing.in(Easing.cubic) });
+      labelOpacity.value = withTiming(0, { duration: 400 });
+      scale.value = withTiming(0.95, { duration: 600 });
+      fadeTimerRef.current = setTimeout(() => {
+        runOnJS(onDismiss)();
+      }, 650);
+    }, DISPLAY_DURATION);
+  };
+
   const containerStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
+    opacity: imageOpacity.value,
   }));
 
   const imageStyle = useAnimatedStyle(() => ({
@@ -94,18 +105,29 @@ export default function SceneReveal({ nodeType, locationName, onDismiss }: Scene
   const imageSource = SCENE_IMAGES[nodeType];
 
   return (
-    <Animated.View style={[styles.overlay, containerStyle]}>
-      <Animated.View style={[styles.imageContainer, imageStyle]}>
-        <Image source={imageSource} style={styles.image} resizeMode="cover" />
+    <View style={styles.overlay}>
+      <Animated.View style={[styles.imageWrap, containerStyle]}>
+        <Animated.View style={[styles.imageContainer, imageStyle]}>
+          <Image
+            source={imageSource}
+            style={styles.image}
+            resizeMode="cover"
+            onLoad={handleImageLoad}
+          />
+        </Animated.View>
+
+        <LinearGradient
+          colors={['transparent', 'rgba(5,5,10,0.6)', 'rgba(5,5,10,0.95)']}
+          locations={[0.3, 0.6, 1]}
+          style={styles.gradient}
+        />
       </Animated.View>
 
-      <LinearGradient
-        colors={['transparent', 'rgba(5,5,10,0.6)', 'rgba(5,5,10,0.95)']}
-        locations={[0.3, 0.6, 1]}
-        style={styles.gradient}
-      />
-
-      <View style={styles.scanlines} pointerEvents="none" />
+      {!imageLoaded && (
+        <View style={styles.loadingContainer}>
+          <Animated.Text style={styles.loadingText}>LOADING SECTOR...</Animated.Text>
+        </View>
+      )}
 
       <Animated.View style={[styles.labelContainer, labelStyle]}>
         <View style={styles.labelLine} />
@@ -121,7 +143,7 @@ export default function SceneReveal({ nodeType, locationName, onDismiss }: Scene
         </View>
         <View style={styles.labelLine} />
       </Animated.View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -133,6 +155,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  imageWrap: {
+    ...StyleSheet.absoluteFillObject,
+  },
   imageContainer: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -143,11 +168,16 @@ const styles = StyleSheet.create({
   gradient: {
     ...StyleSheet.absoluteFillObject,
   },
-  scanlines: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.06,
-    backgroundColor: 'transparent',
-    backgroundImage: undefined,
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontFamily: 'monospace',
+    fontSize: 11,
+    color: Colors.accent.cyan,
+    letterSpacing: 3,
+    opacity: 0.5,
   },
   labelContainer: {
     position: 'absolute',
