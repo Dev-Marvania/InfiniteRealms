@@ -2,7 +2,7 @@
 
 ## Overview
 
-Glitch in the System is a mobile-first cyberpunk RPG where the player is Asset #404, trapped in a decaying VR simulation called Eden v9.0. The Architect (an antagonistic AI) narrates sarcastically as the player explores corrupted sectors, hacks systems, and fights digital enemies to find the Exit Node. The game features a dark terminal-aesthetic UI split into two zones: the "Architect Interface" (top half with The Architect's avatar image with mood-reactive glows and typewriter-style narrative text with TTS) and the "Terminal Dashboard" (bottom half with quick command buttons, text input, world map, inventory, and stat bars).
+Glitch in the System is a mobile-first cyberpunk RPG where the player is "User 001" (The Awake One), trapped in a VR simulation called Eden v9.0. The Architect (an antagonistic AI) actively tries to keep the player trapped while narrating sarcastically. The player must escape by reaching Terminal Zero at coordinates [0,0] and executing the LOGOUT command. The game follows a three-act Prison Break structure: Act 1 (Recycle Bin - outer zone, coordinates 3-5), Act 2 (Neon City - middle zone, coordinates 1-2), Act 3 (The Source - center, coordinates 0). The game features a dark terminal-aesthetic UI split into two zones: the "Architect Interface" (top half with The Architect's avatar image with mood-reactive glows and typewriter-style narrative text with TTS) and the "Terminal Dashboard" (bottom half with quick command buttons, text input, world map, inventory, and stat bars).
 
 ## User Preferences
 
@@ -12,6 +12,7 @@ Preferred communication style: Simple, everyday language.
 
 - **2025-02-13:** Complete theme transformation from fantasy RPG to cyberpunk. Replaced all game content with tech-themed loot (Debug Tool, Zero-Day Exploit, Patch 1.02), digital enemies (Null Pointer Ghost, Garbage Collector), corrupted locations (Server Room B, Blue Screen of Death, Memory Leak Canyon), and sarcastic Architect dialogue. Added "Hack" command with 40% success rate. Replaced orb avatar with The Architect image (assets/images/architect.png) featuring mood-based glowing overlays (cyan=neutral, red=danger, purple=mystic) with glitch animations and corner brackets. Added horizontal scrolling quick command buttons (Go North/South/East/West, Attack, Hack, Search, Rest, Cast Spell) with press animations. Integrated expo-speech for text-to-speech narration. Complete UI overhaul: angular styling, neon cyan/green accents, monospace fonts, sharper borders, terminal aesthetic, reduced border radius to 2-4px throughout. Updated all components for cyberpunk theme. Added interactive audio system: action SFX (move, attack, hack, search, rest, item pickup) via expo-av at low volume (0.25), and ambient background drone that fades in during narrator TTS speech and fades out when speech ends (volume 0.12). Audio files generated programmatically as WAV files in assets/audio/.
 - **2026-02-13:** Integrated AI-powered game engine using GPT-5 via Replit AI Integrations. Server endpoint `POST /api/game/command` in `server/gameAI.ts` generates creative narrative with The Architect's personality, structured JSON responses (narrative, mood, stat changes, items). Frontend calls AI endpoint with 30s timeout, falls back to local `lib/gameEngine.ts` templates if AI is unavailable. TTS remains expo-speech (OpenAI TTS not available through modelfarm).
+- **2026-02-13:** Complete narrative overhaul: Three-act Prison Break structure (Recycle Bin → Neon City → The Source). Player is "User 001" starting at (4,4), must reach Terminal Zero at (0,0) and type EXECUTE LOGOUT to win. Added loss conditions (death at 0 HP, ambushes in Acts 2-3, trap zones, failed hack penalties), difficulty scaling by distance to center, Admin Keycard quest item, Hunter Protocol enemies, game over/victory screens with restart functionality. Rewrote AI system prompt with active opposition mechanics and strict techy-but-simple language rules. Updated all narrative labels from "ASSET #404" to "USER 001". Updated WorldMap to show three-act zones with act-appropriate node types.
 
 ## System Architecture
 
@@ -25,7 +26,7 @@ Preferred communication style: Simple, everyday language.
 - **Fonts:** Cinzel (serif) from Google Fonts for The Architect's narrative voice; monospace for UI labels and user input.
 - **UI Components:**
   - `GodAvatar` — The Architect's image with mood-colored glow borders (cyan/red/purple), corner brackets, glitch translate animation, and pulse scale
-  - `NarrativeStream` — Scrollable story log with typewriter text effect and TTS playback. Labels: "> THE ARCHITECT" and "> ASSET #404"
+  - `NarrativeStream` — Scrollable story log with typewriter text effect and TTS playback. Labels: "> THE ARCHITECT" and "> USER 001"
   - `CommandDeck` — Horizontal scrolling quick command buttons with press scale + glow animations, plus text input with terminal-style send button
   - `WorldMap` — 5×5 grid with cyberpunk tile types (server, firewall, corrupted, data, terminal, exit) and fog-of-war
   - `VisualInventory` — Icon grid showing tech items (debug tools, patches, exploits, rootkits, etc.)
@@ -52,7 +53,7 @@ Preferred communication style: Simple, everyday language.
 
 1. **Cyberpunk terminal aesthetic:** Angular UI with 2-4px border radius, monospace fonts for UI elements, Cinzel serif for narrative text, neon cyan/green/red accents on dark backgrounds.
 
-2. **Client-side game engine with Architect personality:** The game engine runs entirely on the client with template-based narratives. Each action triggers both a gameplay narrative AND a sarcastic Architect commentary. The "Hack" command has a 40% success rate — success bypasses barriers, failure costs 10 HP.
+2. **Three-act Prison Break narrative with AI + fallback:** Primary engine is GPT-5 AI on the server. Fallback is `lib/gameEngine.ts` with act-aware templates. Each action triggers gameplay narrative + Architect commentary. Hack success rate varies by act (50%/35%/25%). Difficulty scales by distance to center. Loss conditions: 0 HP death, ambushes, traps. Win condition: EXECUTE LOGOUT at Terminal Zero (0,0).
 
 3. **Text-to-speech narration:** expo-speech reads Architect responses aloud after the typewriter animation finishes, with code-like syntax stripped before speaking.
 
@@ -73,4 +74,4 @@ Preferred communication style: Simple, everyday language.
   - `esbuild` for server production builds
   - `drizzle-kit` for database migrations
   - `patch-package` for patching npm dependencies (runs on postinstall)
-- **No external AI service yet:** The game engine is local/template-based. When AI integration is added, it will likely need an API key for OpenAI or similar service stored as an environment variable.
+- **AI:** GPT-5 via Replit AI Integrations (OpenAI). Uses `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL` environment variables (auto-configured).
