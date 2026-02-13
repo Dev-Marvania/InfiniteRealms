@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 
+// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -70,13 +71,13 @@ ${state.recentHistory.length > 0 ? `Recent events:\n${state.recentHistory.slice(
 Player command: "${state.command}"`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-5-mini",
+    model: "gpt-5",
     messages: [
       { role: "system", content: ARCHITECT_SYSTEM_PROMPT },
       { role: "user", content: contextMessage },
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 1024,
+    max_completion_tokens: 2048,
   });
 
   const content = response.choices[0]?.message?.content || "{}";
@@ -107,37 +108,3 @@ Player command: "${state.command}"`;
   }
 }
 
-export async function generateSpeechAudio(text: string): Promise<Buffer> {
-  const cleanText = text
-    .replace(/\/\/.*$/gm, "")
-    .replace(/`[^`]*`/g, "")
-    .replace(/\{[^}]*\}/g, "")
-    .replace(/[_*#]/g, "")
-    .trim();
-
-  if (!cleanText) {
-    return Buffer.alloc(0);
-  }
-
-  const response = await openai.chat.completions.create({
-    model: "gpt-audio-mini",
-    modalities: ["text", "audio"],
-    audio: { voice: "onyx", format: "wav" },
-    messages: [
-      {
-        role: "system",
-        content: "You are a dramatic narrator for a cyberpunk game. Read the following text exactly as written, with a menacing, sarcastic tone. Do not add any words or change the text — only read it aloud with dramatic delivery.",
-      },
-      {
-        role: "user",
-        content: `Read this aloud exactly: ${cleanText}`,
-      },
-    ],
-  });
-
-  const audioData = (response.choices[0]?.message as any)?.audio?.data ?? "";
-  if (!audioData) {
-    return Buffer.alloc(0);
-  }
-  return Buffer.from(audioData, "base64");
-}

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
-import { generateGameResponse, generateSpeechAudio } from "./gameAI";
+import { generateGameResponse } from "./gameAI";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game/command", async (req, res) => {
@@ -32,29 +32,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newItem: null,
         intent: "unknown",
       });
-    }
-  });
-
-  app.post("/api/game/speak", async (req, res) => {
-    try {
-      const { text } = req.body;
-
-      if (!text) {
-        return res.status(400).json({ error: "Text is required" });
-      }
-
-      const audioBuffer = await generateSpeechAudio(text);
-
-      if (audioBuffer.length === 0) {
-        return res.status(204).send();
-      }
-
-      res.setHeader("Content-Type", "audio/wav");
-      res.setHeader("Content-Length", audioBuffer.length);
-      res.send(audioBuffer);
-    } catch (error) {
-      console.error("Error generating speech:", error);
-      res.status(500).json({ error: "Failed to generate speech" });
     }
   });
 

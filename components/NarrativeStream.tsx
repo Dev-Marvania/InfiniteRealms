@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import * as Speech from 'expo-speech';
 import Colors from '@/constants/colors';
@@ -86,12 +85,8 @@ function speakText(text: string) {
         language: 'en-US',
         pitch: 0.75,
         rate: 0.85,
-        onDone: () => {
-          stopAmbient().catch(() => {});
-        },
-        onStopped: () => {
-          stopAmbient().catch(() => {});
-        },
+        onDone: () => { stopAmbient().catch(() => {}); },
+        onStopped: () => { stopAmbient().catch(() => {}); },
       });
     }
   } catch {}

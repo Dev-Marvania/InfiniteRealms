@@ -18,6 +18,7 @@ import Colors from '@/constants/colors';
 import { useGameStore } from '@/lib/useGameStore';
 import { processCommand } from '@/lib/gameEngine';
 import { playSfx, getActionSound } from '@/lib/soundManager';
+import { getApiUrl } from '@/lib/query-client';
 import GodAvatar from '@/components/GodAvatar';
 import NarrativeStream from '@/components/NarrativeStream';
 import CommandDeck from '@/components/CommandDeck';
@@ -42,22 +43,47 @@ export default function GameScreen() {
   const history = useGameStore((s) => s.history);
   const currentMood = useGameStore((s) => s.currentMood);
 
-  const handleCommand = useCallback((text: string) => {
+  const handleCommand = useCallback(async (text: string) => {
     const store = useGameStore.getState();
     store.addMessage({ role: 'user', content: text });
     store.setThinking(true);
 
-    const delay = 1200 + Math.random() * 1500;
+    try {
+      const recentHistory = store.history
+        .filter((h) => h.role === 'god')
+        .slice(-3)
+        .map((h) => h.content.slice(0, 150));
 
-    setTimeout(() => {
-      const currentState = useGameStore.getState();
-      const response = processCommand(text, currentState.location);
+      const baseUrl = getApiUrl();
+      const url = new URL('/api/game/command', baseUrl);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: text,
+          locationName: store.location.name,
+          locationX: store.location.x,
+          locationY: store.location.y,
+          hp: store.hp,
+          mana: store.mana,
+          recentHistory,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const response = await res.json();
 
       const actionSound = getActionSound(response.intent);
       if (actionSound) {
         playSfx(actionSound).catch(() => {});
       }
 
+      const currentState = useGameStore.getState();
       currentState.addMessage({
         role: 'god',
         content: response.narrative,
@@ -71,14 +97,35 @@ export default function GameScreen() {
         currentState.setMana(currentState.mana + response.manaChange);
       }
       if (response.newItem) {
-        currentState.addItem(response.newItem);
+        const item = {
+          ...response.newItem,
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        };
+        currentState.addItem(item);
         setTimeout(() => playSfx('item').catch(() => {}), 300);
       }
-      if (response.newLocation) {
-        currentState.setLocation(response.newLocation);
+      if (response.intent === 'move') {
+        const dirMap: Record<string, { dx: number; dy: number }> = {
+          north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
+          east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
+        };
+        const lower = text.toLowerCase();
+        let dx = 0, dy = 0;
+        for (const [dir, delta] of Object.entries(dirMap)) {
+          if (lower.includes(dir)) { dx = delta.dx; dy = delta.dy; break; }
+        }
+        if (dx === 0 && dy === 0) {
+          dx = [-1, 0, 1][Math.floor(Math.random() * 3)];
+          dy = [-1, 0, 1][Math.floor(Math.random() * 3)];
+        }
+        const newX = currentState.location.x + dx;
+        const newY = currentState.location.y + dy;
+        const locNames = ['Server Room B', 'Packet Graveyard', 'Memory Leak Canyon', 'Null Sector', 'Recursive Corridor', 'Segfault Caverns', 'Firewall Gate', 'The Stack Overflow', 'Cache Wasteland', 'Binary Swamp'];
+        const nameIdx = Math.abs(newX * 7 + newY * 13) % locNames.length;
+        currentState.setLocation({ x: newX, y: newY, name: locNames[nameIdx] });
         setVisitedTiles((prev) => {
           const next = new Set(prev);
-          next.add(`${response.newLocation!.x},${response.newLocation!.y}`);
+          next.add(`${newX},${newY}`);
           return next;
         });
       }
@@ -88,7 +135,38 @@ export default function GameScreen() {
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {}
-    }, delay);
+    } catch (error) {
+      const currentState = useGameStore.getState();
+      const fallback = processCommand(text, currentState.location);
+
+      const actionSound = getActionSound(fallback.intent);
+      if (actionSound) playSfx(actionSound).catch(() => {});
+
+      currentState.addMessage({
+        role: 'god',
+        content: fallback.narrative,
+        mood: fallback.mood,
+      });
+      if (fallback.hpChange !== 0) currentState.setHp(currentState.hp + fallback.hpChange);
+      if (fallback.manaChange !== 0) currentState.setMana(currentState.mana + fallback.manaChange);
+      if (fallback.newItem) {
+        currentState.addItem(fallback.newItem);
+        setTimeout(() => playSfx('item').catch(() => {}), 300);
+      }
+      if (fallback.newLocation) {
+        currentState.setLocation(fallback.newLocation);
+        setVisitedTiles((prev) => {
+          const next = new Set(prev);
+          next.add(`${fallback.newLocation!.x},${fallback.newLocation!.y}`);
+          return next;
+        });
+      }
+      currentState.setMood(fallback.mood);
+      currentState.setThinking(false);
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {}
+    }
   }, []);
 
   const switchTab = (tab: BottomTab) => {
