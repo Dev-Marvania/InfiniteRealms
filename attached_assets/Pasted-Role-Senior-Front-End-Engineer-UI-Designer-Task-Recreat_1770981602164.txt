@@ -1,0 +1,79 @@
+Role: Senior Front-End Engineer & UI Designer.
+Task: Recreate a specific "Cyberpunk System Map" interface based on the visual description below.
+Tech Stack: React, Tailwind CSS, Framer Motion (for pulses/glitches), SVG (for connections).
+
+1. Visual Aesthetic & Vibe
+Theme: "High-Tech Horror" / "Cyberpunk Glitch". Think The Matrix meets Silent Hill.
+
+Color Palette:
+
+Background: Deep Void Blue/Black (#020205).
+
+Primary Accent (Player): Neon Cyan (#00f3ff) with heavy glow.
+
+Secondary Accent (Nodes): Electric Purple (#bd00ff).
+
+Text/Grid: Faint Terminal Green (#0aff00) and White.
+
+Fog: Volumetric dark grey/blue smoke clouds.
+
+2. UI Layout & Layers (Z-Index Stack)
+Layer 1: The Base (Background)
+
+A dark, scanline-textured background.
+
+A faint, perspective-distorted green grid (like a radar screen) that fades out towards the edges.
+
+Random "digital noise" or static textures overlaying the deep background.
+
+Layer 2: The Network Graph (The Map)
+
+Central Node: A bright, pulsing Cyan circle in the center.
+
+Label: A small rectangular badge pointing to it reading "YOU ARE HERE" (White text on Cyan background).
+
+Surrounding Nodes: 6-8 smaller nodes arranged radially around the center.
+
+Style: Purple rings with icons inside (Server, Lock, Database).
+
+Connections: Glowing straight lines (SVG) connecting the central node to the outer nodes. The lines should gradient from Cyan to Purple.
+
+Location Labels: Floating text boxes near specific nodes:
+
+"Server Room B" (Green border/text).
+
+"Firewall Gate" (Red/Pink border/text).
+
+Layer 3: The "Fog of War" (The Cloud)
+
+Visual: Thick, storm-like dark clouds surrounding the central cluster, obscuring the rest of the map.
+
+Effect: The clouds should not be static; they should have a slow "rolling" animation or blur effect.
+
+Lightning: Occasional jagged white/blue "lightning" strikes branching through the clouds in the corners.
+
+Layer 4: The Glitch Overlay (Top Layer)
+
+Artifacts: Random horizontal "tearing" lines (chromatic aberration).
+
+Distortion: Patches of the screen should look pixelated or shifted, simulating a corrupted video feed.
+
+Header: At the very top, a HUD-style header reading:
+
+SYSTEM MAP // UNKNOWN TERRITORY
+
+Font: Monospace/Terminal font (e.g., 'JetBrains Mono').
+
+Style: Glowing Cyan text with a thin underline.
+
+3. Specific Implementation Details for Replit
+Grid: Use background-image: linear-gradient(...) to create the grid lines.
+
+Fog: Use CSS mask-image with a radial gradient to show the center clearly and hide the edges, OR layer semi-transparent PNG cloud textures with CSS animations.
+
+Glows: Heavy usage of box-shadow (e.g., box-shadow: 0 0 20px cyan).
+
+Responsiveness: The map should be centered and scalable (using a coordinate system or absolute positioning relative to the center).
+
+Action:
+Generate the React code for this Map Component. Use a simple array of objects for the nodes ({ id, x, y, type, label }) and render them. Add the "Fog" as a vignette overlay.
