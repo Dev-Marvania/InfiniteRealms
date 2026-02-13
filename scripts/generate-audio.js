@@ -152,6 +152,24 @@ function generateAmbient() {
   return samples;
 }
 
+function generateSceneEnter() {
+  const duration = 0.8;
+  const numSamples = Math.floor(SAMPLE_RATE * duration);
+  const samples = new Float32Array(numSamples);
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / SAMPLE_RATE;
+    const env = envelope(t, 0.02, 0.2, 0.3, 0.35, duration);
+    const sweep = 200 + (t / duration) * 600;
+    const tone1 = Math.sin(2 * Math.PI * sweep * t) * 0.2;
+    const tone2 = Math.sin(2 * Math.PI * (sweep * 0.5) * t) * 0.15;
+    const shimmer = Math.sin(2 * Math.PI * 1200 * t + Math.sin(t * 6) * 3) * 0.06 * Math.max(0, 1 - t / duration);
+    const whoosh = (Math.random() * 2 - 1) * 0.08 * Math.max(0, 1 - t * 3);
+    samples[i] = (tone1 + tone2 + shimmer + whoosh) * env * 0.3;
+  }
+  return samples;
+}
+
 function generateError() {
   const duration = 0.2;
   const numSamples = Math.floor(SAMPLE_RATE * duration);
@@ -176,6 +194,7 @@ const sounds = {
   item: generateItem(),
   ambient: generateAmbient(),
   error: generateError(),
+  scene_enter: generateSceneEnter(),
 };
 
 if (!fs.existsSync(AUDIO_DIR)) {

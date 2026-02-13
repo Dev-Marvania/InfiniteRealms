@@ -1,7 +1,7 @@
 import { Audio } from 'expo-av';
 import { Platform } from 'react-native';
 
-type SoundName = 'move' | 'attack' | 'hack' | 'search' | 'rest' | 'item' | 'ambient' | 'error';
+type SoundName = 'move' | 'attack' | 'hack' | 'search' | 'rest' | 'item' | 'ambient' | 'error' | 'scene_enter';
 
 const SOUND_FILES: Record<SoundName, any> = {
   move: require('../assets/audio/move.wav'),
@@ -12,6 +12,7 @@ const SOUND_FILES: Record<SoundName, any> = {
   item: require('../assets/audio/item.wav'),
   ambient: require('../assets/audio/ambient.wav'),
   error: require('../assets/audio/error.wav'),
+  scene_enter: require('../assets/audio/scene_enter.wav'),
 };
 
 const SFX_VOLUME = 0.25;
