@@ -140,12 +140,14 @@ If running outside of Replit, you'll need to set `AI_INTEGRATIONS_OPENAI_API_KEY
 ## Screenshots
 
 <p align="center">
-  <img src="assets/images/screenshot-gameplay.png" alt="Glitch in the System - Gameplay" width="300" />
+  <img src="assets/images/screenshot-terminal.png" alt="Terminal View - Narrative, stats, and commands" width="280" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="assets/images/screenshot-map.png" alt="System View - World map and objectives" width="280" />
 </p>
 
 The game features a dark terminal-aesthetic UI split into two zones:
-- **Top half**: The Architect's avatar with mood-reactive glows and typewriter-style narrative text
-- **Bottom half**: Quick command buttons, text input, world map, inventory, and stat bars
+- **Terminal View** (left): The Architect's avatar with mood-reactive glows, typewriter-style narrative text, stat bars (SYS_STABILITY and ENERGY), and quick command buttons
+- **System View** (right): 5x5 world map with fog-of-war, current zone indicator, and objective tracker
 
 ## License
 
