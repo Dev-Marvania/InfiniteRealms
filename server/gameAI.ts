@@ -110,31 +110,34 @@ ${state.recentHistory.length > 0 ? `Recent events:\n${state.recentHistory.slice(
 Player command: "${state.command}"`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-5",
+    model: "gpt-4o",
     messages: [
       { role: "system", content: ARCHITECT_SYSTEM_PROMPT },
       { role: "user", content: contextMessage },
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 1024,
+    max_tokens: 1024,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
+  const content = response.choices[0]?.message?.content?.trim() || "{}";
 
   try {
-    const parsed = JSON.parse(content) as AIGameResponse;
+    const parsed = JSON.parse(content) as Record<string, any>;
 
-    if (!parsed.narrative) {
-      parsed.narrative = 'The system freezes. Error codes scroll across the screen.\n\n// THE ARCHITECT: "...Even I crashed. That\'s your fault, User 001."';
-    }
-    if (!["neutral", "danger", "mystic"].includes(parsed.mood)) {
-      parsed.mood = "neutral";
-    }
-    parsed.hpChange = Math.max(-20, Math.min(20, parsed.hpChange || 0));
-    parsed.manaChange = Math.max(-25, Math.min(15, parsed.manaChange || 0));
-    if (!parsed.intent) parsed.intent = "unknown";
+    const narrative = parsed.narrative || parsed.text || parsed.response || parsed.message || parsed.story || parsed.output || parsed.content;
 
-    return parsed;
+    const result: AIGameResponse = {
+      narrative: (typeof narrative === 'string' && narrative.length > 0)
+        ? narrative
+        : `The terminal glitches. Something went wrong in the rendering pipeline.\n\n// THE ARCHITECT: "My display driver crashed. Give me a second, User 001."`,
+      mood: ["neutral", "danger", "mystic"].includes(parsed.mood) ? parsed.mood : "neutral",
+      hpChange: Math.max(-20, Math.min(20, Number(parsed.hpChange) || 0)),
+      manaChange: Math.max(-25, Math.min(15, Number(parsed.manaChange) || 0)),
+      newItem: parsed.newItem && parsed.newItem.name ? parsed.newItem : null,
+      intent: parsed.intent || "unknown",
+    };
+
+    return result;
   } catch {
     return {
       narrative: 'The terminal spits out garbage data. Something broke.\n\n// THE ARCHITECT: "My narration engine just crashed. I blame you, User 001."',
