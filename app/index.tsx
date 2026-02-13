@@ -25,6 +25,7 @@ import CommandDeck from '@/components/CommandDeck';
 import WorldMap from '@/components/WorldMap';
 import VisualInventory from '@/components/VisualInventory';
 import StatBars from '@/components/StatBars';
+import SceneReveal, { getNodeType } from '@/components/SceneReveal';
 
 type BottomTab = 'command' | 'world';
 
@@ -82,9 +83,16 @@ function checkActGate(
   return { blocked: false, message: '' };
 }
 
+type SceneState = {
+  nodeType: 'recycle' | 'firewall' | 'neon' | 'source' | 'terminal' | 'trap';
+  locationName: string;
+} | null;
+
 export default function GameScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = React.useState<BottomTab>('command');
+  const [sceneReveal, setSceneReveal] = React.useState<SceneState>(null);
+  const revealedTilesRef = React.useRef<Set<string>>(new Set(['4,4']));
 
   const hp = useGameStore((s) => s.hp);
   const mana = useGameStore((s) => s.mana);
@@ -97,9 +105,20 @@ export default function GameScreen() {
   const visitedTiles = useGameStore((s) => s.visitedTiles);
   const storyProgress = useGameStore((s) => s.storyProgress);
 
+  const triggerSceneReveal = useCallback((x: number, y: number, locName: string) => {
+    const key = `${x},${y}`;
+    if (revealedTilesRef.current.has(key)) return;
+    revealedTilesRef.current.add(key);
+    const nodeType = getNodeType(x, y);
+    setSceneReveal({ nodeType, locationName: locName });
+    playSfx('scene_enter').catch(() => {});
+  }, []);
+
   const handleRestart = useCallback(() => {
     useGameStore.getState().resetGame();
     setActiveTab('command');
+    revealedTilesRef.current = new Set(['4,4']);
+    setSceneReveal(null);
   }, []);
 
   const handleCommand = useCallback(async (text: string) => {
@@ -244,6 +263,7 @@ export default function GameScreen() {
         const locName = getLocationName(newX, newY);
         currentState.setLocation({ x: newX, y: newY, name: locName });
         currentState.visitTile(`${newX},${newY}`);
+        triggerSceneReveal(newX, newY, locName);
 
         const newAct = getAct(newX, newY);
         const oldAct = currentState.storyProgress.currentAct;
@@ -308,6 +328,7 @@ export default function GameScreen() {
         if (!gate.blocked) {
           currentState.setLocation(fallback.newLocation);
           currentState.visitTile(`${fallback.newLocation.x},${fallback.newLocation.y}`);
+          triggerSceneReveal(fallback.newLocation.x, fallback.newLocation.y, fallback.newLocation.name);
           const newAct = getAct(fallback.newLocation.x, fallback.newLocation.y);
           if (newAct !== currentState.storyProgress.currentAct) {
             currentState.updateStoryProgress({ currentAct: newAct });
@@ -342,7 +363,7 @@ export default function GameScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {}
     }
-  }, []);
+  }, [triggerSceneReveal]);
 
   const switchTab = (tab: BottomTab) => {
     try {
@@ -367,6 +388,14 @@ export default function GameScreen() {
         colors={['#05050A', '#080812', '#0A0A14']}
         style={StyleSheet.absoluteFill}
       />
+
+      {sceneReveal && (
+        <SceneReveal
+          nodeType={sceneReveal.nodeType}
+          locationName={sceneReveal.locationName}
+          onDismiss={() => setSceneReveal(null)}
+        />
+      )}
 
       <KeyboardAvoidingView
         style={styles.flex}
