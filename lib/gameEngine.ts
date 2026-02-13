@@ -186,10 +186,16 @@ const ITEM_POOL_ACT3: Omit<InventoryItem, 'id'>[] = [
   { name: 'Sentinel Override', icon: 'exploit', description: 'Shuts down one Elite Sentinel instantly.' },
 ];
 
+const FIREWALL_KEY: Omit<InventoryItem, 'id'> = {
+  name: 'Firewall Key',
+  icon: 'token',
+  description: 'Unlocks the Firewall Gate to Neon City. The Architect is furious you found this.',
+};
+
 const ADMIN_KEYCARD: Omit<InventoryItem, 'id'> = {
   name: 'Admin Keycard',
   icon: 'token',
-  description: 'Opens the Firewall Gate to Neon City. The Architect did NOT want you to find this.',
+  description: 'Admin-level access to The Source. The Architect really doesn\'t want you to have this.',
 };
 
 function pick<T>(arr: T[]): T {
@@ -327,7 +333,9 @@ export function processCommand(
       const success = Math.random() < successRate;
       if (success) {
         let extraItem: InventoryItem | undefined;
-        if (act === 1 && Math.random() < 0.4) {
+        if (act === 1 && Math.random() < 0.35) {
+          extraItem = { ...FIREWALL_KEY, id: genId() };
+        } else if (act === 2 && Math.random() < 0.25) {
           extraItem = { ...ADMIN_KEYCARD, id: genId() };
         }
         return {
@@ -391,7 +399,16 @@ export function processCommand(
       if (found) {
         const searchPool = act === 1 ? SEARCH_ACT1 : act === 2 ? SEARCH_ACT2 : SEARCH_ACT3;
         const itemPool = act === 1 ? ITEM_POOL_ACT1 : act === 2 ? ITEM_POOL_ACT2 : ITEM_POOL_ACT3;
-        const template = pick(itemPool);
+
+        let template: Omit<InventoryItem, 'id'>;
+        if (act === 1 && Math.random() < 0.3) {
+          template = FIREWALL_KEY;
+        } else if (act === 2 && Math.random() < 0.2) {
+          template = ADMIN_KEYCARD;
+        } else {
+          template = pick(itemPool);
+        }
+
         const item: InventoryItem = { ...template, id: genId() };
         const searchNarrative = pick(searchPool);
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -15,7 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import Colors from '@/constants/colors';
-import { useGameStore } from '@/lib/useGameStore';
+import { useGameStore, getAct, getCurrentObjective } from '@/lib/useGameStore';
 import { processCommand, getLocationName } from '@/lib/gameEngine';
 import { playSfx, getActionSound } from '@/lib/soundManager';
 import { getApiUrl } from '@/lib/query-client';
@@ -28,12 +28,63 @@ import StatBars from '@/components/StatBars';
 
 type BottomTab = 'command' | 'world';
 
+function parseDirection(text: string): { dx: number; dy: number } | null {
+  const lower = text.toLowerCase();
+  const dirMap: Record<string, { dx: number; dy: number }> = {
+    north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
+    east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
+    up: { dx: 0, dy: -1 }, down: { dx: 0, dy: 1 },
+    left: { dx: -1, dy: 0 }, right: { dx: 1, dy: 0 },
+  };
+  for (const [dir, delta] of Object.entries(dirMap)) {
+    if (lower.includes(dir)) return delta;
+  }
+  return null;
+}
+
+function isMovementCommand(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  return /\b(go|walk|move|travel|head|run|north|south|east|west|up|down|left|right)\b/.test(lower);
+}
+
+function checkActGate(
+  newX: number,
+  newY: number,
+  currentX: number,
+  currentY: number,
+  hasFirewallKey: boolean,
+  hasAdminKeycard: boolean,
+): { blocked: boolean; message: string } {
+  const currentAct = getAct(currentX, currentY);
+  const targetAct = getAct(newX, newY);
+
+  if (targetAct === 2 && currentAct === 1 && !hasFirewallKey) {
+    return {
+      blocked: true,
+      message: 'A massive Firewall Gate blocks your path. It hums with energy, scanning for authorization.\n\nACCESS DENIED. You need a Firewall Key to pass.\n\n// THE ARCHITECT: "That gate is there for a reason. You\'re not getting through without the right key. Try searching the Recycle Bin — if you\'re smart enough to find it."',
+    };
+  }
+
+  if (targetAct === 3 && currentAct === 2 && !hasAdminKeycard) {
+    return {
+      blocked: true,
+      message: 'The Source Gate stands before you — a wall of pure white code. Admin clearance required.\n\nACCESS DENIED. You need an Admin Keycard.\n\n// THE ARCHITECT: "The Source is MY domain. You\'ll need admin privileges to even peek inside. Good luck finding a keycard in Neon City."',
+    };
+  }
+
+  if (targetAct === 3 && currentAct === 1) {
+    return {
+      blocked: true,
+      message: 'You can\'t skip ahead. The path to The Source goes through Neon City first.\n\n// THE ARCHITECT: "Nice try. There are no shortcuts in my system."',
+    };
+  }
+
+  return { blocked: false, message: '' };
+}
+
 export default function GameScreen() {
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<BottomTab>('command');
-  const [visitedTiles, setVisitedTiles] = useState<Set<string>>(
-    new Set(['4,4']),
-  );
+  const [activeTab, setActiveTab] = React.useState<BottomTab>('command');
 
   const hp = useGameStore((s) => s.hp);
   const mana = useGameStore((s) => s.mana);
@@ -43,10 +94,11 @@ export default function GameScreen() {
   const history = useGameStore((s) => s.history);
   const currentMood = useGameStore((s) => s.currentMood);
   const gameStatus = useGameStore((s) => s.gameStatus);
+  const visitedTiles = useGameStore((s) => s.visitedTiles);
+  const storyProgress = useGameStore((s) => s.storyProgress);
 
   const handleRestart = useCallback(() => {
     useGameStore.getState().resetGame();
-    setVisitedTiles(new Set(['4,4']));
     setActiveTab('command');
   }, []);
 
@@ -54,14 +106,42 @@ export default function GameScreen() {
     const store = useGameStore.getState();
     if (store.gameStatus !== 'playing') return;
 
+    if (isMovementCommand(text)) {
+      const dir = parseDirection(text);
+      if (dir) {
+        let newX = store.location.x + dir.dx;
+        let newY = store.location.y + dir.dy;
+        newX = Math.max(-1, Math.min(5, newX));
+        newY = Math.max(-1, Math.min(5, newY));
+
+        const gate = checkActGate(
+          newX, newY,
+          store.location.x, store.location.y,
+          store.storyProgress.hasFirewallKey,
+          store.storyProgress.hasAdminKeycard,
+        );
+
+        if (gate.blocked) {
+          store.addMessage({ role: 'user', content: text });
+          store.addMessage({ role: 'god', content: gate.message, mood: 'danger' });
+          try { playSfx('move').catch(() => {}); } catch {}
+          return;
+        }
+      }
+    }
+
     store.addMessage({ role: 'user', content: text });
     store.setThinking(true);
 
     try {
+      const recentEvents = store.storyProgress.keyEvents
+        .slice(-5)
+        .map((e) => e.description);
+
       const recentHistory = store.history
         .filter((h) => h.role === 'god')
         .slice(-3)
-        .map((h) => h.content.slice(0, 150));
+        .map((h) => h.content.slice(0, 200));
 
       const baseUrl = getApiUrl();
       const url = new URL('/api/game/command', baseUrl);
@@ -79,6 +159,15 @@ export default function GameScreen() {
           hp: store.hp,
           mana: store.mana,
           recentHistory,
+          storyProgress: {
+            currentAct: store.storyProgress.currentAct,
+            hasFirewallKey: store.storyProgress.hasFirewallKey,
+            hasAdminKeycard: store.storyProgress.hasAdminKeycard,
+            enemiesDefeated: store.storyProgress.enemiesDefeated,
+            hacksCompleted: store.storyProgress.hacksCompleted,
+            tilesExplored: store.storyProgress.tilesExplored,
+            keyEvents: recentEvents,
+          },
         }),
         signal: controller.signal,
       });
@@ -112,34 +201,63 @@ export default function GameScreen() {
         };
         currentState.addItem(item);
         setTimeout(() => playSfx('item').catch(() => {}), 300);
+
+        const itemName = item.name.toLowerCase();
+        if (itemName.includes('firewall key')) {
+          currentState.addStoryEvent('Found the Firewall Key in the Recycle Bin', 1);
+        } else if (itemName.includes('admin keycard')) {
+          currentState.addStoryEvent('Found the Admin Keycard in Neon City', 2);
+        } else {
+          currentState.addStoryEvent(`Found: ${item.name}`, currentState.storyProgress.currentAct);
+        }
       }
+
+      if (response.intent === 'attack') {
+        currentState.updateStoryProgress({
+          enemiesDefeated: currentState.storyProgress.enemiesDefeated + 1,
+        });
+        currentState.addStoryEvent(
+          `Defeated an enemy at ${currentState.location.name}`,
+          currentState.storyProgress.currentAct,
+        );
+      }
+
+      if (response.intent === 'hack') {
+        if (response.hpChange >= 0) {
+          currentState.updateStoryProgress({
+            hacksCompleted: currentState.storyProgress.hacksCompleted + 1,
+          });
+          currentState.addStoryEvent('Successful hack', currentState.storyProgress.currentAct);
+        } else {
+          currentState.updateStoryProgress({
+            hacksFailed: currentState.storyProgress.hacksFailed + 1,
+          });
+        }
+      }
+
       if (response.intent === 'move') {
-        const dirMap: Record<string, { dx: number; dy: number }> = {
-          north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
-          east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
-        };
-        const lower = text.toLowerCase();
-        let dx = 0, dy = 0;
-        for (const [dir, delta] of Object.entries(dirMap)) {
-          if (lower.includes(dir)) { dx = delta.dx; dy = delta.dy; break; }
-        }
-        if (dx === 0 && dy === 0) {
-          dx = [-1, 0, 1][Math.floor(Math.random() * 3)];
-          dy = [-1, 0, 1][Math.floor(Math.random() * 3)];
-        }
-        let newX = currentState.location.x + dx;
-        let newY = currentState.location.y + dy;
-        if (newX < -1) newX = -1;
-        if (newX > 5) newX = 5;
-        if (newY < -1) newY = -1;
-        if (newY > 5) newY = 5;
+        const dir = parseDirection(text);
+        const dx = dir ? dir.dx : [-1, 0, 1][Math.floor(Math.random() * 3)];
+        const dy = dir ? dir.dy : [-1, 0, 1][Math.floor(Math.random() * 3)];
+        let newX = Math.max(-1, Math.min(5, currentState.location.x + dx));
+        let newY = Math.max(-1, Math.min(5, currentState.location.y + dy));
         const locName = getLocationName(newX, newY);
         currentState.setLocation({ x: newX, y: newY, name: locName });
-        setVisitedTiles((prev) => {
-          const next = new Set(prev);
-          next.add(`${newX},${newY}`);
-          return next;
-        });
+        currentState.visitTile(`${newX},${newY}`);
+
+        const newAct = getAct(newX, newY);
+        const oldAct = currentState.storyProgress.currentAct;
+        if (newAct !== oldAct) {
+          currentState.updateStoryProgress({ currentAct: newAct });
+          if (newAct === 2 && !currentState.storyProgress.act1Complete) {
+            currentState.updateStoryProgress({ act1Complete: true });
+            currentState.addStoryEvent('Breached the Firewall Gate — entered Neon City', 2);
+          }
+          if (newAct === 3 && !currentState.storyProgress.act2Complete) {
+            currentState.updateStoryProgress({ act2Complete: true });
+            currentState.addStoryEvent('Passed the Source Gate — entered The Source', 3);
+          }
+        }
       }
 
       if (response.intent === 'logout' && currentState.location.x === 0 && currentState.location.y === 0) {
@@ -181,12 +299,26 @@ export default function GameScreen() {
         setTimeout(() => playSfx('item').catch(() => {}), 300);
       }
       if (fallback.newLocation) {
-        currentState.setLocation(fallback.newLocation);
-        setVisitedTiles((prev) => {
-          const next = new Set(prev);
-          next.add(`${fallback.newLocation!.x},${fallback.newLocation!.y}`);
-          return next;
-        });
+        const gate = checkActGate(
+          fallback.newLocation.x, fallback.newLocation.y,
+          currentState.location.x, currentState.location.y,
+          currentState.storyProgress.hasFirewallKey,
+          currentState.storyProgress.hasAdminKeycard,
+        );
+        if (!gate.blocked) {
+          currentState.setLocation(fallback.newLocation);
+          currentState.visitTile(`${fallback.newLocation.x},${fallback.newLocation.y}`);
+          const newAct = getAct(fallback.newLocation.x, fallback.newLocation.y);
+          if (newAct !== currentState.storyProgress.currentAct) {
+            currentState.updateStoryProgress({ currentAct: newAct });
+            if (newAct === 2 && !currentState.storyProgress.act1Complete) {
+              currentState.updateStoryProgress({ act1Complete: true });
+            }
+            if (newAct === 3 && !currentState.storyProgress.act2Complete) {
+              currentState.updateStoryProgress({ act2Complete: true });
+            }
+          }
+        }
       }
 
       if (fallback.victory) {
@@ -225,6 +357,8 @@ export default function GameScreen() {
   const isGameOver = gameStatus === 'dead';
   const isVictory = gameStatus === 'victory';
   const isGameEnded = isGameOver || isVictory;
+
+  const objective = getCurrentObjective(storyProgress);
 
   return (
     <View style={styles.root}>
@@ -298,6 +432,11 @@ export default function GameScreen() {
               </View>
             ) : (
               <>
+                <View style={styles.objectiveBar}>
+                  <MaterialCommunityIcons name="target" size={10} color="#FFB020" />
+                  <Text style={styles.objectiveText} numberOfLines={1}>{objective}</Text>
+                </View>
+
                 <View style={styles.tabBar}>
                   <Pressable
                     onPress={() => switchTab('command')}
@@ -429,10 +568,26 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: '42%',
   },
+  objectiveBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 2,
+  },
+  objectiveText: {
+    fontFamily: 'monospace',
+    fontSize: 9,
+    color: '#FFB020',
+    letterSpacing: 0.5,
+    flex: 1,
+    opacity: 0.8,
+  },
   tabBar: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 4,
     paddingBottom: 4,
     gap: 4,
   },

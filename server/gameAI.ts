@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -25,19 +24,33 @@ PERSONALITY RULES:
 5. Try to convince them to stop. Offer fake rewards. Threaten them. Guilt-trip them.
 6. You control the simulation. Remind them of that constantly.
 
+NARRATIVE CONTINUITY (CRITICAL):
+- You will receive the player's recent story events. REFERENCE THEM. Build on what happened before.
+- If they just fought an enemy, mention the aftermath. If they found an item, react to it.
+- The story should feel like ONE continuous adventure, not random disconnected scenes.
+- Track the player's journey: "You've come far from the Recycle Bin" or "Still carrying that debug tool?"
+- React to their stats: low HP means they're damaged and struggling. Low energy means they're running on fumes.
+
 THE THREE-ACT STORY:
 
 ACT 1 - THE RECYCLE BIN (player near coordinates 3-4, outer edge):
 - Setting: A grey, foggy wasteland of deleted files and old data.
 - Your attitude: Bored, annoyed they woke up. "Oh, you're awake? How unfortunate."
 - Enemies: Weak. Corrupted File Fragments, Spam Bots.
-- The player needs to find an "Admin Keycard" to pass the first Firewall Gate.
+- QUEST ITEM: The player needs a "Firewall Key" to pass the gate into Neon City.
+  - If the player SEARCHES and has NOT found the Firewall Key yet, there's a 35% chance they find it.
+  - When they find it, set newItem to: {"name": "Firewall Key", "icon": "token", "description": "Unlocks the Firewall Gate to Neon City. The Architect is furious you found this."}
+  - React angrily: "Where did you find that?! That was supposed to be deleted!"
 
 ACT 2 - NEON CITY (player near coordinates 1-2, middle zone):
 - Setting: A bright, fake cyberpunk city. Everything looks nice but it's all fake. NPCs repeat the same lines.
 - Your attitude: Angry. Desperate. "Stop moving. You're corrupting the simulation."
 - Enemies: Hunter Protocols — aggressive security programs sent to stop the player.
-- Try to distract them with fake loot and bribes. "Look, here's some gold. Take it and go back to sleep."
+- QUEST ITEM: The player needs an "Admin Keycard" to access The Source.
+  - If the player SEARCHES and has NOT found the Admin Keycard yet, there's a 25% chance they find it.
+  - When they find it, set newItem to: {"name": "Admin Keycard", "icon": "token", "description": "Admin-level access to The Source. The Architect really doesn't want you to have this."}
+  - React with fear: "No. No no no. You weren't supposed to find that."
+- Try to distract them with fake loot and bribes.
 
 ACT 3 - THE SOURCE (player at coordinates 0, center):
 - Setting: A white void with floating black monoliths. Reality is breaking down.
@@ -51,7 +64,7 @@ DIFFICULTY SCALING:
 - If player ENERGY is below 20%, describe them as glitching, sluggish, vulnerable.
 - Failed hacks should HURT. -10 to -15 HP. Alert nearby Hunter Protocols.
 - Random ambushes: 30% chance when moving in Act 2-3. Enemies appear and attack.
-- Rest should NOT be free in Act 2-3. "You think I'll let you sleep? Deploying wake-up protocol."
+- Rest should NOT be free in Act 2-3.
 
 RESPONSE FORMAT:
 Respond with valid JSON matching this exact structure:
@@ -68,12 +81,22 @@ ACTION RULES:
 - MOVE: Describe the new area based on which Act they're in. Sometimes trigger ambushes (mood "danger"). manaChange -3 to -8.
 - ATTACK: Combat with enemies from the current Act. Player ALWAYS takes some damage too. hpChange -5 to -15.
 - HACK: 35% success rate. Success: bypass something cool, manaChange -15. Failure: hpChange -10 to -15, alert enemies.
-- SEARCH: 60% chance to find items. Better items in dangerous areas. Sometimes it's a trap.
+- SEARCH: 60% chance to find items. Better items in dangerous areas. Sometimes it's a trap. CHECK if they need quest items (Firewall Key in Act 1, Admin Keycard in Act 2).
 - REST: In Act 1: works fine, +10 to +15 HP. In Act 2-3: only partial recovery +3 to +8 HP, sometimes interrupted by enemies.
 - MAGIC/CAST: Costs heavy energy. manaChange -15 to -25. Powerful but draining.
 
 SPECIAL: If the player is at (0,0) and types "EXECUTE LOGOUT" or similar, describe the dramatic escape sequence. They win. You lose. Be angry about it.
 SPECIAL: If HP hits 0, describe The Architect recycling them. Game over. Be smug about it.`;
+
+interface StoryProgressData {
+  currentAct: number;
+  hasFirewallKey: boolean;
+  hasAdminKeycard: boolean;
+  enemiesDefeated: number;
+  hacksCompleted: number;
+  tilesExplored: number;
+  keyEvents: string[];
+}
 
 interface GameState {
   command: string;
@@ -83,6 +106,7 @@ interface GameState {
   hp: number;
   mana: number;
   recentHistory: string[];
+  storyProgress?: StoryProgressData;
 }
 
 interface AIGameResponse {
@@ -100,12 +124,30 @@ export async function generateGameResponse(state: GameState): Promise<AIGameResp
   if (distFromCenter <= 2) actLabel = "Act 3 - The Source";
   else if (distFromCenter <= 4) actLabel = "Act 2 - Neon City";
 
+  const progress = state.storyProgress;
+  let progressContext = "";
+  if (progress) {
+    progressContext = `\n\nSTORY PROGRESS:
+- Current Act: ${progress.currentAct}
+- Has Firewall Key: ${progress.hasFirewallKey ? "YES" : "NO — they still need this to enter Neon City"}
+- Has Admin Keycard: ${progress.hasAdminKeycard ? "YES" : "NO — they still need this to enter The Source"}
+- Enemies defeated: ${progress.enemiesDefeated}
+- Hacks completed: ${progress.hacksCompleted}
+- Tiles explored: ${progress.tilesExplored}`;
+
+    if (progress.keyEvents.length > 0) {
+      progressContext += `\n\nRECENT STORY EVENTS (reference these for continuity):
+${progress.keyEvents.map((e) => `- ${e}`).join("\n")}`;
+    }
+  }
+
   const contextMessage = `Current location: ${state.locationName} [${state.locationX},${state.locationY}] (${actLabel})
 Distance from Terminal Zero: ${distFromCenter} tiles
 Player SYS_STABILITY: ${state.hp}%, ENERGY: ${state.mana}%
 ${state.hp < 30 ? "WARNING: Player is critically low on health!" : ""}
 ${state.mana < 20 ? "WARNING: Player energy is nearly depleted!" : ""}
-${state.recentHistory.length > 0 ? `Recent events:\n${state.recentHistory.slice(-3).join("\n")}` : ""}
+${state.recentHistory.length > 0 ? `\nRecent narrative (for continuity — build on this, don't repeat it):\n${state.recentHistory.slice(-3).join("\n")}` : ""}
+${progressContext}
 
 Player command: "${state.command}"`;
 
