@@ -1,0 +1,59 @@
+Act as a Senior Narrative Designer and Game Logic Programmer.
+
+The "Infinite Realms" app structure is built. Now, I need you to populate the game logic with the **"Glitch in the System"** storyline.
+
+### 1. The Narrative Premise (The "Bible")
+* **The World:** "Eden v9.0" — A decaying Virtual Reality simulation.
+* **The Player:** A "QA Tester" trapped inside the code.
+* **The "God" Avatar:** "The Architect" (System Admin AI).
+    * *Personality:* Condescending, sarcastic, bureaucratic. It views the player as a "bug" to be deleted.
+    * *Voice Style:* Mix of English and pseudo-code. (e.g., "Why do you resist? `delete_user(you)` is inevitable.")
+* **The Goal:** Find the "Exit Node" before your "System Stability" (HP) reaches 0%.
+
+### 2. The Data: Items & Enemies (Cyberpunk Theme)
+Replace the generic fantasy items in our `utils` folder with these Tech-Themed assets:
+
+**Loot Table (Inventory):**
+1.  **"Debug Tool"** (Weapon): A glowing crowbar made of wireframes.
+    * *Desc:* "Deletes enemies from existence. Has a 50% chance to crash."
+2.  **"Patch 1.02"** (Potion): A blue data shard.
+    * *Desc:* "Restores 20% Stability. Tastes like static."
+3.  **"Zero-Day Exploit"** (Key): A red jagged keycard.
+    * *Desc:* "Unlocks any encrypted door. Use with caution."
+4.  **"Firewall Shield"** (Armor): A holographic barrier.
+    * *Desc:* "Blocks incoming `garbage_collection` attacks."
+
+**Bestiary (Enemies):**
+1.  **"Null Pointer Ghost"**: A transparent figure that flickers in and out.
+2.  **"The Garbage Collector"**: A floating drone that tries to "sweep" you away.
+3.  **"Infinite Loop"**: A trap room that repeats the same description until you "Hack" it.
+
+### 3. The Logic: Game Engine Updates
+Update the `processAction(input)` function in `utils/gameEngine.ts` to handle this specific logic:
+
+**A. The "Hack" Command (New Mechanic)**
+If the user input contains words like "hack", "rewrite", "code", or "sudo":
+* **Check:** Random chance (40% success).
+* **Success:** "You rewrote the door's logic. It dissolves into binary dust." (Unlock/Win).
+* **Fail:** "ACCESS DENIED. The Architect noticed you. (-10 HP)."
+* **Avatar Mood:** Set to `danger` (Red).
+
+**B. The "God" Reactions (Dynamic Dialogue)**
+* **Idle/Walk:** The Architect should mock the user.
+    * *Example:* "Walking? How primitive. I could just `teleport` you into the sun."
+* **Combat:** The Architect cheers for the enemy.
+    * *Example:* "Go, Garbage Collector! Optimize this user out of existence!"
+
+**C. The Opening Scene (Hardcode this)**
+When the app loads, the first history entry must be:
+* **Role:** God (The Architect)
+* **Content:** "BOOT SEQUENCE INITIATED... Error: User unauthorized. Welcome to Eden v9.0, Asset #404. Please stand by for deletion."
+
+### 4. Implementation Task
+Please rewrite the `utils/gameEngine.ts` file to include:
+1.  The `items` array with the Cyberpunk loot.
+2.  The `locations` logic (e.g., "Corrupted Lobby", "Server Room B", "The Blue Screen of Death").
+3.  The `processAction` switch statement with the specific dialogue and "Hack" mechanic described above.
+
+**Action:**
+Update the game engine now with this "Glitch" theme.
