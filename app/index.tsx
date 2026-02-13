@@ -433,8 +433,8 @@ export default function GameScreen() {
             ) : (
               <>
                 <View style={styles.objectiveBar}>
-                  <MaterialCommunityIcons name="target" size={10} color="#FFB020" />
-                  <Text style={styles.objectiveText} numberOfLines={1}>{objective}</Text>
+                  <MaterialCommunityIcons name="target" size={14} color="#FFB020" />
+                  <Text style={styles.objectiveText} numberOfLines={2}>{objective}</Text>
                 </View>
 
                 <View style={styles.tabBar}>
@@ -571,18 +571,21 @@ const styles = StyleSheet.create({
   objectiveBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 2,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 176, 32, 0.08)',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255, 176, 32, 0.15)',
   },
   objectiveText: {
     fontFamily: 'monospace',
-    fontSize: 9,
+    fontSize: 12,
     color: '#FFB020',
     letterSpacing: 0.5,
     flex: 1,
-    opacity: 0.8,
+    lineHeight: 18,
   },
   tabBar: {
     flexDirection: 'row',
