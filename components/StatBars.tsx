@@ -6,7 +6,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Colors from '@/constants/colors';
 
 interface StatBarProps {
@@ -15,11 +15,12 @@ interface StatBarProps {
   label: string;
   fillColor: string;
   trackColor: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  iconName: string;
+  iconSet: 'ion' | 'mci';
   iconColor: string;
 }
 
-function StatBar({ value, max, label, fillColor, trackColor, icon, iconColor }: StatBarProps) {
+function StatBar({ value, max, label, fillColor, trackColor, iconName, iconSet, iconColor }: StatBarProps) {
   const widthAnim = useSharedValue(value / max);
 
   useEffect(() => {
@@ -33,15 +34,21 @@ function StatBar({ value, max, label, fillColor, trackColor, icon, iconColor }: 
     width: `${widthAnim.value * 100}%`,
   }));
 
+  const pct = Math.round((value / max) * 100);
+
   return (
     <View style={styles.barContainer}>
       <View style={styles.barHeader}>
         <View style={styles.barLabelRow}>
-          <Ionicons name={icon} size={12} color={iconColor} />
-          <Text style={styles.barLabel}>{label}</Text>
+          {iconSet === 'ion' ? (
+            <Ionicons name={iconName as any} size={11} color={iconColor} />
+          ) : (
+            <MaterialCommunityIcons name={iconName as any} size={11} color={iconColor} />
+          )}
+          <Text style={[styles.barLabel, { color: iconColor }]}>{label}</Text>
         </View>
         <Text style={[styles.barValue, { color: iconColor }]}>
-          {value}/{max}
+          {pct}%
         </Text>
       </View>
       <View style={[styles.barTrack, { backgroundColor: trackColor }]}>
@@ -64,19 +71,21 @@ export default function StatBars({ hp, mana }: StatBarsProps) {
       <StatBar
         value={hp}
         max={100}
-        label="HP"
+        label="SYS_STABILITY"
         fillColor={Colors.hp.fill}
         trackColor={Colors.hp.bar}
-        icon="heart"
+        iconName="alert-circle"
+        iconSet="ion"
         iconColor={Colors.hp.fill}
       />
       <StatBar
         value={mana}
         max={100}
-        label="MANA"
+        label="ENERGY"
         fillColor={Colors.mana.fill}
         trackColor={Colors.mana.bar}
-        icon="diamond"
+        iconName="flash"
+        iconSet="ion"
         iconColor={Colors.mana.fill}
       />
     </View>
@@ -85,10 +94,10 @@ export default function StatBars({ hp, mana }: StatBarsProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 10,
+    gap: 8,
   },
   barContainer: {
-    gap: 4,
+    gap: 3,
   },
   barHeader: {
     flexDirection: 'row',
@@ -98,26 +107,27 @@ const styles = StyleSheet.create({
   barLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   barLabel: {
-    fontSize: 10,
+    fontFamily: 'monospace',
+    fontSize: 9,
     fontWeight: '700' as const,
-    color: Colors.text.secondary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   barValue: {
-    fontSize: 11,
+    fontFamily: 'monospace',
+    fontSize: 10,
     fontWeight: '600' as const,
   },
   barTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   barFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 2,
   },
 });

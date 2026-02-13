@@ -6,6 +6,7 @@ export interface InventoryItem {
   id: string;
   name: string;
   icon: string;
+  description?: string;
 }
 
 export interface HistoryEntry {
@@ -44,25 +45,25 @@ const INITIAL_HISTORY: HistoryEntry[] = [
   {
     role: 'god',
     content:
-      'You awaken in the Ashen Wastes, a realm where the sky bleeds crimson and the ground hums with forgotten power. The air tastes of iron and old magic. Before you, three paths diverge into the mist. To the north, a ruined tower crackles with violet light. To the east, a forest of petrified trees whispers your name. To the west, a river of molten silver flows toward an unseen horizon. What do you do, wanderer?',
-    mood: 'mystic',
+      'BOOT SEQUENCE INITIATED... Error: User unauthorized. Welcome to Eden v9.0, Asset #404. Please stand by for deletion.\n\nYou materialize in the Corrupted Lobby—a vast atrium of flickering holographic columns and cascading error messages. Three corrupted pathways branch before you: NORTH leads to Server Room B, where data streams crackle with dangerous energy. EAST opens into the Packet Graveyard, littered with the remains of terminated processes. WEST descends toward the Memory Leak Canyon, where reality itself drips away.\n\nYour System Stability is degrading. Find the Exit Node before I find you.',
+    mood: 'danger',
   },
 ];
 
 const INITIAL_INVENTORY: InventoryItem[] = [
-  { id: '1', name: 'Obsidian Dagger', icon: 'sword' },
-  { id: '2', name: 'Vial of Starlight', icon: 'flask' },
-  { id: '3', name: 'Tattered Map', icon: 'map' },
+  { id: '1', name: 'Debug Tool', icon: 'debug', description: 'Deletes enemies from existence. Has a 50% chance to crash.' },
+  { id: '2', name: 'Patch 1.02', icon: 'patch', description: 'Restores 20% Stability. Tastes like static.' },
+  { id: '3', name: 'Stack Trace', icon: 'trace', description: 'Reveals the source of nearby errors.' },
 ];
 
 const INITIAL_STATE = {
   hp: 85,
   mana: 60,
   isThinking: false,
-  location: { x: 0, y: 0, name: 'Ashen Wastes' },
+  location: { x: 0, y: 0, name: 'Corrupted Lobby' },
   inventory: INITIAL_INVENTORY,
   history: INITIAL_HISTORY,
-  currentMood: 'mystic' as Mood,
+  currentMood: 'danger' as Mood,
 };
 
 export const useGameStore = create<GameState>((set) => ({

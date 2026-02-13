@@ -98,7 +98,7 @@ export default function GameScreen() {
     <View style={styles.root}>
       <StatusBar style="light" />
       <LinearGradient
-        colors={['#0A0A0F', '#0E0E18', '#12121A']}
+        colors={['#05050A', '#080812', '#0A0A14']}
         style={StyleSheet.absoluteFill}
       />
 
@@ -111,7 +111,7 @@ export default function GameScreen() {
           style={[
             styles.screen,
             {
-              paddingTop: (insets.top || webTopInset) + 8,
+              paddingTop: (insets.top || webTopInset) + 4,
               paddingBottom: (insets.bottom || webBottomInset) + 4,
             },
           ]}
@@ -126,7 +126,11 @@ export default function GameScreen() {
             </View>
           </View>
 
-          <View style={styles.divider} />
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <View style={styles.dividerDot} />
+            <View style={styles.dividerLine} />
+          </View>
 
           <View style={styles.zoneB}>
             <View style={styles.tabBar}>
@@ -139,11 +143,11 @@ export default function GameScreen() {
                 testID="tab-command"
               >
                 <Ionicons
-                  name="game-controller"
-                  size={16}
+                  name="terminal"
+                  size={14}
                   color={
                     activeTab === 'command'
-                      ? Colors.accent.gold
+                      ? Colors.accent.cyan
                       : Colors.text.dim
                   }
                 />
@@ -153,7 +157,7 @@ export default function GameScreen() {
                     activeTab === 'command' && styles.tabTextActive,
                   ]}
                 >
-                  Command
+                  {'TERMINAL'}
                 </Text>
               </Pressable>
 
@@ -166,11 +170,11 @@ export default function GameScreen() {
                 testID="tab-world"
               >
                 <MaterialCommunityIcons
-                  name="map-legend"
-                  size={16}
+                  name="map-marker-radius"
+                  size={14}
                   color={
                     activeTab === 'world'
-                      ? Colors.accent.gold
+                      ? Colors.accent.cyan
                       : Colors.text.dim
                   }
                 />
@@ -180,7 +184,7 @@ export default function GameScreen() {
                     activeTab === 'world' && styles.tabTextActive,
                   ]}
                 >
-                  World
+                  {'SYSTEM'}
                 </Text>
               </Pressable>
             </View>
@@ -225,32 +229,44 @@ const styles = StyleSheet.create({
   },
   zoneA: {
     flex: 1,
-    minHeight: '45%',
+    minHeight: '42%',
   },
   avatarContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 4,
-    height: 180,
+    paddingTop: 2,
+    height: 120,
   },
   narrativeContainer: {
     flex: 1,
   },
   divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    gap: 8,
+  },
+  dividerLine: {
+    flex: 1,
     height: 1,
     backgroundColor: Colors.border.subtle,
-    marginHorizontal: 20,
+  },
+  dividerDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.accent.cyan,
     opacity: 0.5,
   },
   zoneB: {
     flex: 1,
-    minHeight: '40%',
+    minHeight: '42%',
   },
   tabBar: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 6,
+    paddingTop: 8,
+    paddingBottom: 4,
     gap: 4,
   },
   tab: {
@@ -259,42 +275,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 7,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   tabActive: {
-    backgroundColor: 'rgba(212, 168, 70, 0.08)',
+    backgroundColor: 'rgba(0, 229, 255, 0.05)',
+    borderColor: Colors.border.subtle,
   },
   tabText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
+    fontFamily: 'monospace',
+    fontSize: 10,
+    fontWeight: '700' as const,
     color: Colors.text.dim,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   tabTextActive: {
-    color: Colors.accent.gold,
+    color: Colors.accent.cyan,
   },
   commandContent: {
     flex: 1,
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingTop: 6,
+    paddingBottom: 6,
   },
   worldScroll: {
     flex: 1,
   },
   worldContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingTop: 6,
     paddingBottom: 16,
-    gap: 20,
+    gap: 14,
   },
   worldSection: {
     backgroundColor: Colors.bg.card,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 4,
+    padding: 12,
     borderWidth: 1,
     borderColor: Colors.border.subtle,
   },

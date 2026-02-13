@@ -9,36 +9,35 @@ interface WorldMapProps {
   visitedTiles: Set<string>;
 }
 
-type TileType = 'cave' | 'forest' | 'ruins' | 'river' | 'tower' | 'village' | 'empty';
+type TileType = 'server' | 'firewall' | 'corrupted' | 'data' | 'terminal' | 'empty' | 'exit';
 
 function getTileType(x: number, y: number): TileType {
   const seed = Math.abs(x * 7919 + y * 6271 + x * y * 31) % 100;
-  if (seed < 15) return 'cave';
-  if (seed < 35) return 'forest';
-  if (seed < 50) return 'ruins';
-  if (seed < 62) return 'river';
-  if (seed < 72) return 'tower';
-  if (seed < 82) return 'village';
+  if (seed < 15) return 'server';
+  if (seed < 30) return 'firewall';
+  if (seed < 48) return 'corrupted';
+  if (seed < 60) return 'data';
+  if (seed < 72) return 'terminal';
+  if (seed < 78) return 'exit';
   return 'empty';
 }
 
 function TileIcon({ type }: { type: TileType }) {
-  const iconSize = 14;
-  const iconColor = Colors.text.dim;
+  const iconSize = 13;
 
   switch (type) {
-    case 'cave':
-      return <MaterialCommunityIcons name="cave" size={iconSize} color={iconColor} />;
-    case 'forest':
-      return <Ionicons name="leaf" size={iconSize} color="#3A6B3A" />;
-    case 'ruins':
-      return <MaterialCommunityIcons name="pillar" size={iconSize} color={iconColor} />;
-    case 'river':
-      return <Ionicons name="water" size={iconSize} color="#3A6B9F" />;
-    case 'tower':
-      return <MaterialCommunityIcons name="chess-rook" size={iconSize} color="#7B5EA7" />;
-    case 'village':
-      return <Ionicons name="home" size={iconSize} color="#8B7230" />;
+    case 'server':
+      return <MaterialCommunityIcons name="server" size={iconSize} color="#4A7FBF" />;
+    case 'firewall':
+      return <MaterialCommunityIcons name="shield-alert" size={iconSize} color="#FF2244" />;
+    case 'corrupted':
+      return <MaterialCommunityIcons name="alert-decagram" size={iconSize} color="#9B7FD4" />;
+    case 'data':
+      return <MaterialCommunityIcons name="database" size={iconSize} color="#00FF88" />;
+    case 'terminal':
+      return <Ionicons name="terminal" size={iconSize} color="#00D4FF" />;
+    case 'exit':
+      return <MaterialCommunityIcons name="exit-run" size={iconSize} color="#FFB020" />;
     default:
       return <View style={styles.emptyDot} />;
   }
@@ -69,7 +68,7 @@ export default function WorldMap({ location, visitedTiles }: WorldMapProps) {
           ]}
         >
           {isPlayer ? (
-            <MaterialCommunityIcons name="account" size={16} color={Colors.accent.gold} />
+            <MaterialCommunityIcons name="account-circle" size={15} color={Colors.accent.cyan} />
           ) : isVisited ? (
             <TileIcon type={tileType} />
           ) : (
@@ -88,10 +87,10 @@ export default function WorldMap({ location, visitedTiles }: WorldMapProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="compass" size={14} color={Colors.accent.gold} />
+        <MaterialCommunityIcons name="map-marker-radius" size={13} color={Colors.accent.cyan} />
         <Text style={styles.locationName}>{location.name}</Text>
         <Text style={styles.coords}>
-          [{location.x}, {location.y}]
+          [{location.x},{location.y}]
         </Text>
       </View>
       <View style={styles.grid}>{tiles}</View>
@@ -109,28 +108,29 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   locationName: {
-    fontFamily: 'Cinzel_400Regular',
-    fontSize: 12,
-    color: Colors.text.primary,
+    fontFamily: 'monospace',
+    fontSize: 11,
+    color: Colors.accent.cyan,
     flex: 1,
+    letterSpacing: 0.5,
   },
   coords: {
-    fontSize: 10,
+    fontSize: 9,
     color: Colors.text.dim,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: 'monospace',
   },
   grid: {
-    gap: 3,
+    gap: 2,
     alignSelf: 'center',
   },
   row: {
     flexDirection: 'row',
-    gap: 3,
+    gap: 2,
   },
   tile: {
-    width: 42,
-    height: 42,
-    borderRadius: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 3,
     backgroundColor: Colors.bg.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -138,24 +138,25 @@ const styles = StyleSheet.create({
     borderColor: Colors.border.subtle,
   },
   playerTile: {
-    backgroundColor: 'rgba(212, 168, 70, 0.15)',
-    borderColor: Colors.accent.gold,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    borderColor: Colors.accent.cyan,
     borderWidth: 1.5,
   },
   fogTile: {
     backgroundColor: Colors.bg.primary,
-    borderColor: 'rgba(42, 42, 58, 0.3)',
+    borderColor: 'rgba(26, 26, 48, 0.3)',
   },
   fogText: {
-    fontSize: 12,
-    color: 'rgba(90, 87, 80, 0.4)',
+    fontFamily: 'monospace',
+    fontSize: 11,
+    color: 'rgba(64, 72, 96, 0.4)',
     fontWeight: '600' as const,
   },
   emptyDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
     backgroundColor: Colors.text.dim,
-    opacity: 0.4,
+    opacity: 0.3,
   },
 });

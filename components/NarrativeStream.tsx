@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
+import * as Speech from 'expo-speech';
 import Colors from '@/constants/colors';
 import { HistoryEntry } from '@/lib/useGameStore';
 
@@ -14,13 +15,14 @@ interface NarrativeStreamProps {
   isThinking: boolean;
 }
 
-function TypewriterText({ text, isLatest }: { text: string; isLatest: boolean }) {
+function TypewriterText({ text, isLatest, onComplete }: { text: string; isLatest: boolean; onComplete?: () => void }) {
   const [displayed, setDisplayed] = useState(isLatest ? '' : text);
   const indexRef = useRef(isLatest ? 0 : text.length);
 
   useEffect(() => {
     if (!isLatest || indexRef.current >= text.length) {
       setDisplayed(text);
+      if (onComplete) onComplete();
       return;
     }
 
@@ -29,8 +31,9 @@ function TypewriterText({ text, isLatest }: { text: string; isLatest: boolean })
       setDisplayed(text.slice(0, indexRef.current));
       if (indexRef.current >= text.length) {
         clearInterval(interval);
+        if (onComplete) onComplete();
       }
-    }, 22);
+    }, 18);
 
     return () => clearInterval(interval);
   }, [text, isLatest]);
@@ -39,31 +42,56 @@ function TypewriterText({ text, isLatest }: { text: string; isLatest: boolean })
     <Text style={styles.entryText}>
       {displayed}
       {isLatest && displayed.length < text.length && (
-        <Text style={styles.cursor}>|</Text>
+        <Text style={styles.cursor}>_</Text>
       )}
     </Text>
   );
 }
 
 function ThinkingIndicator() {
-  const [dots, setDots] = useState('');
+  const [frame, setFrame] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setDots((prev) => (prev.length >= 3 ? '' : prev + '.'));
-    }, 500);
+      setFrame((prev) => (prev + 1) % 4);
+    }, 400);
     return () => clearInterval(interval);
   }, []);
 
+  const frames = ['|', '/', '-', '\\'];
+
   return (
     <View style={[styles.entry, styles.godEntry]}>
-      <Text style={styles.godLabel}>The Narrator ponders{dots}</Text>
+      <Text style={styles.godLabel}>{'> PROCESSING'}</Text>
+      <Text style={styles.thinkingText}>
+        The Architect is computing {frames[frame]}
+      </Text>
     </View>
   );
 }
 
+function speakText(text: string) {
+  try {
+    Speech.stop();
+    const cleanText = text
+      .replace(/\/\/.*$/gm, '')
+      .replace(/`[^`]*`/g, '')
+      .replace(/\{[^}]*\}/g, '')
+      .replace(/[_*#]/g, '')
+      .trim();
+    if (cleanText.length > 0) {
+      Speech.speak(cleanText, {
+        language: 'en-US',
+        pitch: 0.75,
+        rate: 0.85,
+      });
+    }
+  } catch {}
+}
+
 export default function NarrativeStream({ history, isThinking }: NarrativeStreamProps) {
   const scrollRef = useRef<ScrollView>(null);
+  const lastSpokenIndex = useRef(-1);
 
   const scrollToEnd = useCallback(() => {
     setTimeout(() => {
@@ -74,6 +102,13 @@ export default function NarrativeStream({ history, isThinking }: NarrativeStream
   useEffect(() => {
     scrollToEnd();
   }, [history.length, isThinking, scrollToEnd]);
+
+  const handleTypewriterComplete = useCallback((index: number, content: string) => {
+    if (index > lastSpokenIndex.current) {
+      lastSpokenIndex.current = index;
+      speakText(content);
+    }
+  }, []);
 
   return (
     <ScrollView
@@ -95,12 +130,16 @@ export default function NarrativeStream({ history, isThinking }: NarrativeStream
               isGod ? styles.godEntry : styles.userEntry,
             ]}
           >
-            {isGod && <Text style={styles.godLabel}>The Narrator speaks</Text>}
-            {!isGod && <Text style={styles.userLabel}>You declared</Text>}
+            {isGod && <Text style={styles.godLabel}>{'> THE ARCHITECT'}</Text>}
+            {!isGod && <Text style={styles.userLabel}>{'> ASSET #404'}</Text>}
             {isGod ? (
-              <TypewriterText text={entry.content} isLatest={isLatestGod} />
+              <TypewriterText
+                text={entry.content}
+                isLatest={isLatestGod}
+                onComplete={isLatestGod ? () => handleTypewriterComplete(i, entry.content) : undefined}
+              />
             ) : (
-              <Text style={styles.userText}>{entry.content}</Text>
+              <Text style={styles.userText}>{`> ${entry.content}`}</Text>
             )}
           </View>
         );
@@ -115,54 +154,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 12,
+    gap: 12,
   },
   entry: {
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   godEntry: {
     borderLeftWidth: 2,
-    borderLeftColor: Colors.accent.gold,
-    paddingLeft: 14,
+    borderLeftColor: Colors.accent.cyan,
+    paddingLeft: 12,
   },
   userEntry: {
     borderLeftWidth: 2,
-    borderLeftColor: Colors.accent.cyan,
-    paddingLeft: 14,
+    borderLeftColor: Colors.accent.neon,
+    paddingLeft: 12,
   },
   godLabel: {
-    fontFamily: 'Cinzel_400Regular',
-    fontSize: 10,
-    color: Colors.accent.goldDim,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  userLabel: {
-    fontSize: 10,
+    fontFamily: 'monospace',
+    fontSize: 9,
     color: Colors.accent.cyan,
     letterSpacing: 2,
     textTransform: 'uppercase',
-    marginBottom: 6,
-    fontWeight: '600' as const,
+    marginBottom: 4,
+  },
+  userLabel: {
+    fontFamily: 'monospace',
+    fontSize: 9,
+    color: Colors.accent.neon,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 4,
   },
   entryText: {
     fontFamily: 'Cinzel_400Regular',
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.text.god,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   userText: {
-    fontSize: 14,
+    fontFamily: 'monospace',
+    fontSize: 13,
     color: Colors.text.user,
-    lineHeight: 22,
-    fontWeight: '500' as const,
+    lineHeight: 20,
+  },
+  thinkingText: {
+    fontFamily: 'monospace',
+    fontSize: 12,
+    color: Colors.accent.cyan,
+    lineHeight: 20,
   },
   cursor: {
-    color: Colors.accent.gold,
-    fontWeight: '300' as const,
+    color: Colors.accent.cyan,
+    fontFamily: 'monospace',
   },
 });

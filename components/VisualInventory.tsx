@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/colors';
 import { InventoryItem } from '@/lib/useGameStore';
@@ -9,21 +9,16 @@ interface VisualInventoryProps {
 }
 
 const ICON_MAP: Record<string, { set: 'mci' | 'ion'; name: string; color: string }> = {
-  sword: { set: 'mci', name: 'sword', color: '#8B9DB8' },
-  flask: { set: 'mci', name: 'flask-round-bottom', color: '#A87FD4' },
-  map: { set: 'ion', name: 'map', color: '#D4A846' },
-  gem: { set: 'mci', name: 'diamond-stone', color: '#C44040' },
-  shield: { set: 'mci', name: 'shield', color: '#4A7FBF' },
-  scroll: { set: 'mci', name: 'script-text', color: '#D4C9A8' },
-  potion: { set: 'mci', name: 'bottle-tonic', color: '#3ABDC2' },
-  ring: { set: 'mci', name: 'ring', color: '#D4A846' },
-  key: { set: 'ion', name: 'key', color: '#E8A838' },
-  torch: { set: 'mci', name: 'torch', color: '#E8A838' },
-  armor: { set: 'mci', name: 'tshirt-crew', color: '#6B7B8B' },
-  bow: { set: 'mci', name: 'bow-arrow', color: '#7B6B4A' },
-  book: { set: 'ion', name: 'book', color: '#8B5A3A' },
-  coin: { set: 'mci', name: 'currency-usd', color: '#D4A846' },
-  crystal: { set: 'mci', name: 'diamond', color: '#7FD4E8' },
+  debug: { set: 'mci', name: 'wrench', color: '#00E5FF' },
+  patch: { set: 'mci', name: 'memory', color: '#00FF88' },
+  exploit: { set: 'ion', name: 'key', color: '#FF2244' },
+  firewall: { set: 'mci', name: 'shield-check', color: '#9B7FD4' },
+  memory: { set: 'mci', name: 'chip', color: '#00D4FF' },
+  token: { set: 'mci', name: 'key-chain', color: '#FFB020' },
+  trace: { set: 'mci', name: 'file-document-outline', color: '#8090A8' },
+  rootkit: { set: 'mci', name: 'console', color: '#FF00FF' },
+  data: { set: 'mci', name: 'database', color: '#00FF88' },
+  proxy: { set: 'ion', name: 'eye-off', color: '#6B7FBF' },
 };
 
 function ItemIcon({ icon }: { icon: string }) {
@@ -33,13 +28,13 @@ function ItemIcon({ icon }: { icon: string }) {
     return (
       <MaterialCommunityIcons
         name={mapping.name as any}
-        size={22}
+        size={20}
         color={mapping.color}
       />
     );
   }
   return (
-    <Ionicons name={mapping.name as any} size={22} color={mapping.color} />
+    <Ionicons name={mapping.name as any} size={20} color={mapping.color} />
   );
 }
 
@@ -47,8 +42,8 @@ export default function VisualInventory({ items }: VisualInventoryProps) {
   if (items.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="cube-outline" size={28} color={Colors.text.dim} />
-        <Text style={styles.emptyText}>Your satchel is empty</Text>
+        <MaterialCommunityIcons name="package-variant" size={24} color={Colors.text.dim} />
+        <Text style={styles.emptyText}>{'// INVENTORY EMPTY'}</Text>
       </View>
     );
   }
@@ -56,9 +51,9 @@ export default function VisualInventory({ items }: VisualInventoryProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="cube" size={14} color={Colors.accent.gold} />
-        <Text style={styles.title}>Inventory</Text>
-        <Text style={styles.count}>{items.length}</Text>
+        <MaterialCommunityIcons name="package-variant" size={13} color={Colors.accent.cyan} />
+        <Text style={styles.title}>{'INVENTORY'}</Text>
+        <Text style={styles.count}>[{items.length}]</Text>
       </View>
       <View style={styles.grid}>
         {items.map((item) => (
@@ -86,15 +81,16 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    fontFamily: 'Cinzel_400Regular',
-    fontSize: 12,
-    color: Colors.text.primary,
+    fontFamily: 'monospace',
+    fontSize: 11,
+    color: Colors.accent.cyan,
     flex: 1,
+    letterSpacing: 1.5,
   },
   count: {
-    fontSize: 11,
+    fontFamily: 'monospace',
+    fontSize: 10,
     color: Colors.text.dim,
-    fontWeight: '600' as const,
   },
   grid: {
     flexDirection: 'row',
@@ -107,9 +103,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   itemIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 4,
     backgroundColor: Colors.bg.tertiary,
     borderWidth: 1,
     borderColor: Colors.border.subtle,
@@ -117,10 +113,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   itemName: {
-    fontSize: 9,
+    fontFamily: 'monospace',
+    fontSize: 8,
     color: Colors.text.secondary,
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: 11,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -129,8 +126,8 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   emptyText: {
-    fontSize: 12,
+    fontFamily: 'monospace',
+    fontSize: 11,
     color: Colors.text.dim,
-    fontStyle: 'italic',
   },
 });

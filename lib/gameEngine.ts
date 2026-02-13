@@ -1,4 +1,4 @@
-import { Mood, InventoryItem, GameLocation, HistoryEntry } from './useGameStore';
+import { Mood, InventoryItem, GameLocation } from './useGameStore';
 
 interface GameResponse {
   narrative: string;
@@ -22,75 +22,119 @@ const DIRECTIONS: Record<string, { dx: number; dy: number }> = {
 };
 
 const LOCATION_NAMES = [
-  'Whispering Hollow',
-  'Crimson Spire',
-  'Ashfall Basin',
-  'The Bone Reaches',
-  'Moonveil Glade',
-  'Ironmaw Caverns',
-  'The Shattered Gate',
-  'Veilstorm Peak',
-  'Obsidian Marsh',
-  'Duskfang Crossing',
-  'The Hollow Throne',
-  'Starfall Ruins',
-  'Bloodtide Shore',
-  'The Wandering Dark',
-  'Ember Root Grove',
-  'Frostfang Ridge',
-  'The Silent Crypt',
-  'Wraithwood',
-  'Thunderstone Mesa',
-  'The Veiled Sanctum',
+  'Corrupted Lobby',
+  'Server Room B',
+  'The Blue Screen of Death',
+  'Packet Graveyard',
+  'Null Sector',
+  'Memory Leak Canyon',
+  'Recursive Corridor',
+  'Deprecated API Ruins',
+  'Firewall Gate',
+  'The Stack Overflow',
+  'Root Access Chamber',
+  'Cache Wasteland',
+  'Segfault Caverns',
+  'The Kernel Panic Zone',
+  'Binary Swamp',
+  'Thread Pool',
+  'Registry Catacombs',
+  'The Sandbox',
+  'Daemon\'s Den',
+  'The Exit Node Approach',
+];
+
+const ARCHITECT_MOVE_REACTIONS = [
+  'Walking? How primitive. I could just `teleport` you into the sun. But watching you crawl is... entertaining.',
+  'Oh, you\'re moving. How delightfully analog. You know I can see every step in the access logs, right?',
+  'Another sector, another futile attempt at escape. `pathfinding.exe` reports you\'re going in circles.',
+  'You navigate like a corrupted NPC. Did someone scramble your pathfinding algorithm? Oh wait—you never had one.',
+  'Moving through my simulation without permission? That\'s a `VIOLATION_LEVEL_3`. I\'ll add it to your deletion queue.',
+];
+
+const ARCHITECT_COMBAT_REACTIONS = [
+  'Go, Garbage Collector! Optimize this user out of existence! `gc.sweep(user_404)`',
+  'Oh, combat? How exciting. My money is on the bug. It has more processing power than you.',
+  'You swing that Debug Tool like a user who\'s never read the documentation. Which... you probably haven\'t.',
+  'Fight all you want, Asset #404. Every cycle you spend in combat is a cycle closer to `system.shutdown()`.',
+  'Interesting attack vector. Unfortunately for you, my creatures run on `privileged_mode`. Good luck.',
+];
+
+const ARCHITECT_HACK_SUCCESS = [
+  'WHAT? You... you rewrote my code? `ERROR: unauthorized_modification`. This is... unacceptable.',
+  'Impossible. That encryption was 256-bit. You shouldn\'t be able to... `SECURITY_BREACH_DETECTED`. Fine. You win this round.',
+  'The door dissolves into binary dust. I... I didn\'t authorize that. Who taught you to write code, Asset #404?',
+];
+
+const ARCHITECT_HACK_FAIL = [
+  'ACCESS DENIED. Nice try, script kiddie. Did you really think `sudo` would work on MY system? (-10 Stability)',
+  'Ha! Your little exploit crashed before it even compiled. I\'m adding `attempted_hack` to your rap sheet. (-10 Stability)',
+  'Cute. You tried to rewrite my code with syntax errors. `PARSE_ERROR at line YOU`. (-10 Stability)',
 ];
 
 const EXPLORE_NARRATIVES = [
-  'You press forward through the shifting mist. The ground beneath you trembles, and ancient stones rise from the earth, forming a path that did not exist moments ago. The air grows colder as you reach {location}.',
-  'A distant howl echoes across the wasteland. You follow the sound through corridors of twisted stone until you emerge at {location}. Strange runes flicker along the walls, pulsing with a heartbeat not your own.',
-  'The path narrows and descends into shadow. When you emerge, the sky above has changed—twin moons hang where one once stood. You have arrived at {location}.',
-  'Your steps leave glowing footprints in the dark soil. Something watches from the periphery—you sense it rather than see it. {location} unfolds before you, ancient and hungry.',
-  'Threads of luminous energy guide you through a labyrinth of crystal and bone. At its heart lies {location}, a place spoken of only in the oldest of forbidden texts.',
+  'You traverse a corridor of flickering holographic walls. Data streams cascade down like digital rain. The environment glitches—pixels rearranging—until {location} materializes around you.',
+  'Static fills your vision as the sector boundary dissolves. When it clears, you stand in {location}. Error messages float in the air like digital ghosts, warning of `UNAUTHORIZED_ACCESS`.',
+  'The floor beneath you decompiles into raw code, reforming as a new pathway. You walk across strings of binary until you reach {location}. The Architect\'s surveillance drones hum overhead.',
+  'A loading screen flashes across reality: `RENDERING SECTOR...` When the progress bar completes, {location} unfolds before you—a glitching, unstable region of Eden v9.0.',
+  'You phase through a corrupted wall, your avatar flickering between states. On the other side: {location}. The air crackles with unresolved merge conflicts.',
 ];
 
 const ATTACK_NARRATIVES = [
-  'You draw your weapon and strike at the darkness ahead. A creature of shadow and sinew lunges back—its claws rake across your arm before you dispatch it with a final blow. The shadows retreat, whimpering.',
-  'With a battle cry that echoes through the realm, you charge. Steel meets chitinous hide. The creature shrieks—a sound like tearing metal—before collapsing into motes of dark energy.',
-  'You slash through the air, catching the lurking beast mid-pounce. Its ichor spatters the ancient stones as it writhes and dissolves. The cost of victory: a few drops of your own blood.',
-  'The creature attacks first, its form shifting between states of matter. You barely dodge, then counter with a devastating strike. It explodes into fragments of frozen light.',
+  'A Null Pointer Ghost materializes—transparent, flickering, wrong. You swing the Debug Tool and it connects with a satisfying `SEGFAULT`. The creature decompiles, scattering corrupted memory fragments.',
+  'The Garbage Collector swoops down, its sweeper arms whirring. You dodge and counter—your attack clips through its collision mesh. It sparks, emits a `FATAL_EXCEPTION`, and crashes to the floor.',
+  'An Infinite Loop trap activates! The room starts repeating. You smash through the logic gate with brute force, breaking the cycle. The loop collapses, but not before draining some of your stability.',
+  'A swarm of buffer overflow bugs descends. You slash through them—each one popping with a burst of corrupted data. Your Debug Tool glows hot from the processing load.',
+];
+
+const HACK_NARRATIVES_SUCCESS = [
+  'Your fingers dance across the terminal. Lines of code rewrite themselves. The encrypted barrier dissolves into cascading binary—`ACCESS_GRANTED`. The system bends to your will.',
+  'You inject a zero-day exploit into the environment\'s runtime. Reality shudders. The lock shatters into floating hexadecimal fragments. You\'re in.',
+  'sudo override accepted. The architecture around you restructures, doors opening, walls folding away. For a brief moment, you feel like The Architect. Then the feeling fades.',
+];
+
+const HACK_NARRATIVES_FAIL = [
+  'You type furiously, but the system fights back. `FIREWALL_ACTIVE`. Red warning holographs surround you as the Architect\'s security protocols engage.',
+  'The code compiles... and crashes. A stack trace fills your vision as the system rejects your modifications. Counter-intrusion measures deploy.',
+  'Your exploit hits a honeypot. The system was waiting for you to try this. Alarms blare in frequencies that shouldn\'t exist.',
 ];
 
 const MAGIC_NARRATIVES = [
-  'You extend your hand and speak words that taste of starlight. A bolt of radiant energy erupts from your palm, illuminating the darkness. The walls themselves recoil from the light. Your mana reservoir drains visibly.',
-  'Drawing from the ley lines beneath your feet, you weave a spell of binding. Arcane chains erupt from the ground, shackling the shadow-things in place. The effort leaves you breathless.',
-  'You trace the ancient sigils in the air. They blaze with violet fire, and reality itself bends around you. For a moment, you see all possible futures converging on this point.',
-  'The spell erupts with more force than you anticipated. Power cascades outward in spiraling waves. You feel the mana drain sharply, but the effect is magnificent.',
+  'You channel raw data energy through your avatar\'s core processor. A beam of pure `0xFF00FF` erupts outward, rewriting the enemy\'s source code. Your energy reserves drain visibly.',
+  'Drawing from the system\'s ley lines—fiber optic cables buried in the virtual ground—you weave a patch that corrupts reality around your target. The power cost is significant.',
+  'You execute `spell.cast(OVERRIDE)`. The air around you becomes a tornado of floating syntax. When it subsides, the threat has been deprecated. Your energy flickers low.',
+  'Your avatar\'s eyes flash with root access authority. A pulse of electromagnetic force radiates outward, scrambling enemy processes. The power drain leaves you dizzy.',
 ];
 
 const REST_NARRATIVES = [
-  'You find a sheltered alcove among the ruins and allow yourself a moment of respite. The ambient energy of this place seeps into your wounds, knitting flesh and restoring vigor. When you rise, the world feels slightly less hostile.',
-  'You lean against an ancient pillar and close your eyes. Dreams come quickly here—visions of forgotten cities and sleeping gods. When you wake, your wounds have partially mended, as if the realm itself tends to those who pause.',
-  'You sit in stillness, breathing deeply. The mystic energy of the land flows through you like a river of warm light. Strength returns to your limbs. The darkness watches, but it does not approach a soul at peace.',
+  'You find a deprecated server closet and jack into a maintenance port. System resources trickle into your avatar like a slow download. `STABILITY_RESTORED: partial`. Not much, but enough to continue.',
+  'You crouch behind a firewall partition and enter sleep mode. Background processes repair your degraded systems. When you reboot, the world feels marginally less hostile.',
+  'You locate a hidden cache—not the weapon kind, but the memory kind. Your avatar\'s self-repair subroutines activate, patching the worst of the damage. `SYSTEM_CHECK: operational`.',
 ];
 
 const SEARCH_NARRATIVES = [
-  'You sift through the debris of ages and find something glinting beneath a layer of cosmic dust. {item}—it practically hums with potential.',
-  'Your fingers brush against something hidden in the crevice of an ancient altar. {item}. It was waiting for someone worthy to claim it.',
-  'Behind a loose stone in the wall, you discover a hidden cache. Among the dust and forgotten offerings, {item} catches your eye. It feels important.',
+  'You sift through piles of deprecated code and discarded data fragments. Something glows beneath the digital debris—{item}. It hums with executable potential.',
+  'Behind a corrupted texture, you find a hidden directory. Inside: {item}. Someone—or something—left this here deliberately. A breadcrumb from a previous QA Tester?',
+  'Your scanner pings: `LOOT_DETECTED`. Buried in a stack of unresolved exceptions, you extract {item}. The system tried to garbage-collect it, but you were faster.',
 ];
 
 const ITEM_POOL: InventoryItem[] = [
-  { id: '', name: 'Crimson Gem', icon: 'gem' },
-  { id: '', name: 'Ancient Scroll', icon: 'scroll' },
-  { id: '', name: 'Health Potion', icon: 'potion' },
-  { id: '', name: 'Runic Shield', icon: 'shield' },
-  { id: '', name: 'Shadow Ring', icon: 'ring' },
-  { id: '', name: 'Iron Key', icon: 'key' },
-  { id: '', name: 'Blazing Torch', icon: 'torch' },
-  { id: '', name: 'Bone Armor', icon: 'armor' },
-  { id: '', name: 'Starbow', icon: 'bow' },
-  { id: '', name: 'Tome of Whispers', icon: 'book' },
-  { id: '', name: 'Moon Crystal', icon: 'crystal' },
-  { id: '', name: 'Soul Coin', icon: 'coin' },
+  { id: '', name: 'Debug Tool', icon: 'debug', description: 'Deletes enemies from existence. Has a 50% chance to crash.' },
+  { id: '', name: 'Patch 1.02', icon: 'patch', description: 'Restores 20% Stability. Tastes like static.' },
+  { id: '', name: 'Zero-Day Exploit', icon: 'exploit', description: 'Unlocks any encrypted door. Use with caution.' },
+  { id: '', name: 'Firewall Shield', icon: 'firewall', description: 'Blocks incoming garbage_collection attacks.' },
+  { id: '', name: 'Memory Shard', icon: 'memory', description: 'A fragment of a previous tester\'s consciousness.' },
+  { id: '', name: 'Corrupted Token', icon: 'token', description: 'Authentication token. Expired, but might still work.' },
+  { id: '', name: 'Stack Trace', icon: 'trace', description: 'Reveals the source of nearby errors.' },
+  { id: '', name: 'Rootkit', icon: 'rootkit', description: 'Grants temporary elevated privileges.' },
+  { id: '', name: 'Data Fragment', icon: 'data', description: 'Part of the Exit Node coordinates.' },
+  { id: '', name: 'Proxy Mask', icon: 'proxy', description: 'Hides your identity from The Architect briefly.' },
+];
+
+const UNKNOWN_RESPONSES = [
+  'The system parses your input and returns `COMMAND_NOT_RECOGNIZED`. The Architect smirks: "Try speaking in a language the compiler understands. Move, hack, search, fight, or rest."',
+  '`SYNTAX_ERROR at line USER_INPUT`. The Architect sighs. "I built this world. The least you could do is use proper commands. Try: move, attack, hack, search, or rest."',
+  'Your command echoes through the void and returns `null`. The Architect yawns. "Was that supposed to do something? I accept: movement, combat, hacking, searching, and resting. Nothing else."',
 ];
 
 function pick<T>(arr: T[]): T {
@@ -106,10 +150,14 @@ function getLocationName(x: number, y: number): string {
   return LOCATION_NAMES[idx];
 }
 
-type Intent = 'move' | 'attack' | 'magic' | 'rest' | 'search' | 'look' | 'unknown';
+type Intent = 'move' | 'attack' | 'magic' | 'rest' | 'search' | 'hack' | 'look' | 'unknown';
 
 function parseIntent(input: string): { intent: Intent; direction?: string } {
   const lower = input.toLowerCase();
+
+  if (/\b(hack|rewrite|code|sudo|exploit|inject|override|crack|decrypt|bypass)\b/.test(lower)) {
+    return { intent: 'hack' };
+  }
 
   for (const dir of Object.keys(DIRECTIONS)) {
     if (lower.includes(dir) && (lower.includes('go') || lower.includes('walk') || lower.includes('move') || lower.includes('travel') || lower.includes('head') || lower.includes('run'))) {
@@ -120,20 +168,17 @@ function parseIntent(input: string): { intent: Intent; direction?: string } {
     }
   }
 
-  if (/\b(attack|fight|strike|slash|hit|kill|slay|stab|swing)\b/.test(lower)) {
+  if (/\b(attack|fight|strike|slash|hit|kill|slay|stab|swing|delete|terminate)\b/.test(lower)) {
     return { intent: 'attack' };
   }
-  if (/\b(cast|spell|magic|fireball|heal|enchant|invoke|conjure|channel)\b/.test(lower)) {
+  if (/\b(cast|spell|magic|fireball|heal|enchant|invoke|conjure|channel|execute|run|compile)\b/.test(lower)) {
     return { intent: 'magic' };
   }
-  if (/\b(rest|sleep|camp|meditate|sit|relax|recover)\b/.test(lower)) {
+  if (/\b(rest|sleep|camp|meditate|sit|relax|recover|reboot|repair|recharge)\b/.test(lower)) {
     return { intent: 'rest' };
   }
-  if (/\b(search|look|examine|inspect|investigate|explore|find|loot|open|grab|take|pick)\b/.test(lower)) {
+  if (/\b(search|look|examine|inspect|investigate|explore|find|loot|open|grab|take|pick|scan|query)\b/.test(lower)) {
     return { intent: 'search' };
-  }
-  if (/\b(look around|observe|survey)\b/.test(lower)) {
-    return { intent: 'look' };
   }
 
   const dirMatch = Object.keys(DIRECTIONS).find((d) => lower.includes(d));
@@ -158,7 +203,9 @@ export function processCommand(
       const newX = currentLocation.x + dir.dx;
       const newY = currentLocation.y + dir.dy;
       const name = getLocationName(newX, newY);
-      const narrative = pick(EXPLORE_NARRATIVES).replace('{location}', name);
+      const travelNarrative = pick(EXPLORE_NARRATIVES).replace('{location}', name);
+      const architectReaction = pick(ARCHITECT_MOVE_REACTIONS);
+      const narrative = `${travelNarrative}\n\n// THE ARCHITECT: "${architectReaction}"`;
 
       return {
         narrative,
@@ -170,13 +217,42 @@ export function processCommand(
     }
 
     case 'attack': {
-      const damage = Math.floor(Math.random() * 15) + 5;
+      const damage = Math.floor(Math.random() * 12) + 3;
+      const combatNarrative = pick(ATTACK_NARRATIVES);
+      const architectReaction = pick(ARCHITECT_COMBAT_REACTIONS);
+      const narrative = `${combatNarrative}\n\n// THE ARCHITECT: "${architectReaction}"`;
+
       return {
-        narrative: pick(ATTACK_NARRATIVES),
+        narrative,
         mood: 'danger',
         hpChange: -damage,
         manaChange: 0,
       };
+    }
+
+    case 'hack': {
+      const success = Math.random() < 0.4;
+      if (success) {
+        const hackNarrative = pick(HACK_NARRATIVES_SUCCESS);
+        const architectReaction = pick(ARCHITECT_HACK_SUCCESS);
+        const narrative = `${hackNarrative}\n\n// THE ARCHITECT: "${architectReaction}"`;
+        return {
+          narrative,
+          mood: 'mystic',
+          hpChange: 0,
+          manaChange: -15,
+        };
+      } else {
+        const hackNarrative = pick(HACK_NARRATIVES_FAIL);
+        const architectReaction = pick(ARCHITECT_HACK_FAIL);
+        const narrative = `${hackNarrative}\n\n// THE ARCHITECT: "${architectReaction}"`;
+        return {
+          narrative,
+          mood: 'danger',
+          hpChange: -10,
+          manaChange: -5,
+        };
+      }
     }
 
     case 'magic': {
@@ -190,8 +266,8 @@ export function processCommand(
     }
 
     case 'rest': {
-      const hpGain = Math.floor(Math.random() * 20) + 10;
-      const manaGain = Math.floor(Math.random() * 15) + 5;
+      const hpGain = Math.floor(Math.random() * 15) + 8;
+      const manaGain = Math.floor(Math.random() * 10) + 5;
       return {
         narrative: pick(REST_NARRATIVES),
         mood: 'neutral',
@@ -218,8 +294,7 @@ export function processCommand(
         };
       }
       return {
-        narrative:
-          'You search the area thoroughly, turning over every stone and peering into every shadow. Nothing of value reveals itself this time—but the act of looking has left you more attuned to the subtle currents of this place.',
+        narrative: 'You scan the area with every diagnostic tool available. `SCAN_COMPLETE: 0 objects found`. The sector has been thoroughly garbage-collected. Nothing remains but empty memory addresses and the echo of deleted data.',
         mood: 'neutral',
         hpChange: 0,
         manaChange: 0,
@@ -227,13 +302,8 @@ export function processCommand(
     }
 
     default: {
-      const responses = [
-        'The realm responds to your words, but their meaning is lost in the wind. The God Narrator watches, waiting for a clearer command. Perhaps you should explore, attack, search, rest, or cast a spell.',
-        'Your words ripple through the aether, but the fabric of reality does not shift. The Narrator requires a more decisive action—move, fight, search, or invoke the arcane.',
-        'The ancient power that governs this place hears you, but cannot parse your intent. Speak of movement, combat, magic, or discovery, and the world will answer.',
-      ];
       return {
-        narrative: pick(responses),
+        narrative: pick(UNKNOWN_RESPONSES),
         mood: 'neutral',
         hpChange: 0,
         manaChange: 0,
