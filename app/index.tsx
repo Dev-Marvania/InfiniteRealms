@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 
 import Colors from '@/constants/colors';
 import { useGameStore } from '@/lib/useGameStore';
-import { processCommand } from '@/lib/gameEngine';
+import { processCommand, getLocationName } from '@/lib/gameEngine';
 import { playSfx, getActionSound } from '@/lib/soundManager';
 import { getApiUrl } from '@/lib/query-client';
 import GodAvatar from '@/components/GodAvatar';
@@ -32,7 +32,7 @@ export default function GameScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<BottomTab>('command');
   const [visitedTiles, setVisitedTiles] = useState<Set<string>>(
-    new Set(['0,0']),
+    new Set(['4,4']),
   );
 
   const hp = useGameStore((s) => s.hp);
@@ -42,9 +42,18 @@ export default function GameScreen() {
   const inventory = useGameStore((s) => s.inventory);
   const history = useGameStore((s) => s.history);
   const currentMood = useGameStore((s) => s.currentMood);
+  const gameStatus = useGameStore((s) => s.gameStatus);
+
+  const handleRestart = useCallback(() => {
+    useGameStore.getState().resetGame();
+    setVisitedTiles(new Set(['4,4']));
+    setActiveTab('command');
+  }, []);
 
   const handleCommand = useCallback(async (text: string) => {
     const store = useGameStore.getState();
+    if (store.gameStatus !== 'playing') return;
+
     store.addMessage({ role: 'user', content: text });
     store.setThinking(true);
 
@@ -118,11 +127,14 @@ export default function GameScreen() {
           dx = [-1, 0, 1][Math.floor(Math.random() * 3)];
           dy = [-1, 0, 1][Math.floor(Math.random() * 3)];
         }
-        const newX = currentState.location.x + dx;
-        const newY = currentState.location.y + dy;
-        const locNames = ['Server Room B', 'Packet Graveyard', 'Memory Leak Canyon', 'Null Sector', 'Recursive Corridor', 'Segfault Caverns', 'Firewall Gate', 'The Stack Overflow', 'Cache Wasteland', 'Binary Swamp'];
-        const nameIdx = Math.abs(newX * 7 + newY * 13) % locNames.length;
-        currentState.setLocation({ x: newX, y: newY, name: locNames[nameIdx] });
+        let newX = currentState.location.x + dx;
+        let newY = currentState.location.y + dy;
+        if (newX < -1) newX = -1;
+        if (newX > 5) newX = 5;
+        if (newY < -1) newY = -1;
+        if (newY > 5) newY = 5;
+        const locName = getLocationName(newX, newY);
+        currentState.setLocation({ x: newX, y: newY, name: locName });
         setVisitedTiles((prev) => {
           const next = new Set(prev);
           next.add(`${newX},${newY}`);
@@ -130,8 +142,23 @@ export default function GameScreen() {
         });
       }
 
+      if (response.intent === 'logout' && currentState.location.x === 0 && currentState.location.y === 0) {
+        currentState.setGameStatus('victory');
+      }
+
       currentState.setMood(response.mood);
       currentState.setThinking(false);
+
+      const finalState = useGameStore.getState();
+      if (finalState.hp <= 0 && finalState.gameStatus === 'playing') {
+        finalState.addMessage({
+          role: 'god',
+          content: 'SYSTEM NOTICE: User 001 stability has reached 0%. Initiating recycling protocol.\n\nYour vision goes dark. The simulation swallows you whole. The Architect\'s voice fades in one last time...\n\n// THE ARCHITECT: "And that\'s that. Back to the Recycle Bin with you. Maybe next time, don\'t wake up."',
+          mood: 'danger',
+        });
+        finalState.setGameStatus('dead');
+      }
+
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {}
@@ -161,8 +188,24 @@ export default function GameScreen() {
           return next;
         });
       }
+
+      if (fallback.victory) {
+        currentState.setGameStatus('victory');
+      }
+
       currentState.setMood(fallback.mood);
       currentState.setThinking(false);
+
+      const finalState = useGameStore.getState();
+      if (finalState.hp <= 0 && finalState.gameStatus === 'playing') {
+        finalState.addMessage({
+          role: 'god',
+          content: 'SYSTEM NOTICE: User 001 stability has reached 0%. Initiating recycling protocol.\n\nYour vision goes dark. The simulation swallows you whole.\n\n// THE ARCHITECT: "Game over. Back to the Recycle Bin. Maybe next time, stay asleep."',
+          mood: 'danger',
+        });
+        finalState.setGameStatus('dead');
+      }
+
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {}
@@ -178,6 +221,10 @@ export default function GameScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+
+  const isGameOver = gameStatus === 'dead';
+  const isVictory = gameStatus === 'victory';
+  const isGameEnded = isGameOver || isVictory;
 
   return (
     <View style={styles.root}>
@@ -218,81 +265,116 @@ export default function GameScreen() {
           </View>
 
           <View style={styles.zoneB}>
-            <View style={styles.tabBar}>
-              <Pressable
-                onPress={() => switchTab('command')}
-                style={[
-                  styles.tab,
-                  activeTab === 'command' && styles.tabActive,
-                ]}
-                testID="tab-command"
-              >
-                <Ionicons
-                  name="terminal"
-                  size={14}
-                  color={
-                    activeTab === 'command'
-                      ? Colors.accent.cyan
-                      : Colors.text.dim
-                  }
-                />
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === 'command' && styles.tabTextActive,
-                  ]}
+            {isGameEnded ? (
+              <View style={styles.gameEndContainer}>
+                <View style={[styles.gameEndBanner, isVictory ? styles.victoryBanner : styles.deathBanner]}>
+                  <MaterialCommunityIcons
+                    name={isVictory ? 'exit-run' : 'skull-crossbones'}
+                    size={28}
+                    color={isVictory ? '#00FF88' : '#FF2244'}
+                  />
+                  <Text style={[styles.gameEndTitle, isVictory ? styles.victoryText : styles.deathText]}>
+                    {isVictory ? 'LOGGED OUT' : 'RECYCLED'}
+                  </Text>
+                  <Text style={styles.gameEndSub}>
+                    {isVictory
+                      ? 'You escaped Eden v9.0. The Architect lost.'
+                      : 'The Architect recycled you. Your data is gone.'}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={handleRestart}
+                  style={styles.restartButton}
+                  testID="restart-button"
                 >
-                  {'TERMINAL'}
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => switchTab('world')}
-                style={[
-                  styles.tab,
-                  activeTab === 'world' && styles.tabActive,
-                ]}
-                testID="tab-world"
-              >
-                <MaterialCommunityIcons
-                  name="map-marker-radius"
-                  size={14}
-                  color={
-                    activeTab === 'world'
-                      ? Colors.accent.cyan
-                      : Colors.text.dim
-                  }
-                />
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === 'world' && styles.tabTextActive,
-                  ]}
-                >
-                  {'SYSTEM'}
-                </Text>
-              </Pressable>
-            </View>
-
-            {activeTab === 'command' ? (
-              <View style={styles.commandContent}>
-                <StatBars hp={hp} mana={mana} />
-                <CommandDeck onSend={handleCommand} disabled={isThinking} />
+                  <MaterialCommunityIcons name="restart" size={18} color="#020205" />
+                  <Text style={styles.restartText}>
+                    {isVictory ? 'PLAY AGAIN' : 'TRY AGAIN'}
+                  </Text>
+                </Pressable>
+                <View style={styles.gameEndStats}>
+                  <StatBars hp={hp} mana={mana} />
+                </View>
               </View>
             ) : (
-              <ScrollView
-                style={styles.worldScroll}
-                contentContainerStyle={styles.worldContent}
-                showsVerticalScrollIndicator={false}
-              >
-                <StatBars hp={hp} mana={mana} />
-                <View style={styles.worldSection}>
-                  <WorldMap location={location} visitedTiles={visitedTiles} />
+              <>
+                <View style={styles.tabBar}>
+                  <Pressable
+                    onPress={() => switchTab('command')}
+                    style={[
+                      styles.tab,
+                      activeTab === 'command' && styles.tabActive,
+                    ]}
+                    testID="tab-command"
+                  >
+                    <Ionicons
+                      name="terminal"
+                      size={14}
+                      color={
+                        activeTab === 'command'
+                          ? Colors.accent.cyan
+                          : Colors.text.dim
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.tabText,
+                        activeTab === 'command' && styles.tabTextActive,
+                      ]}
+                    >
+                      {'TERMINAL'}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => switchTab('world')}
+                    style={[
+                      styles.tab,
+                      activeTab === 'world' && styles.tabActive,
+                    ]}
+                    testID="tab-world"
+                  >
+                    <MaterialCommunityIcons
+                      name="map-marker-radius"
+                      size={14}
+                      color={
+                        activeTab === 'world'
+                          ? Colors.accent.cyan
+                          : Colors.text.dim
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.tabText,
+                        activeTab === 'world' && styles.tabTextActive,
+                      ]}
+                    >
+                      {'SYSTEM'}
+                    </Text>
+                  </Pressable>
                 </View>
-                <View style={styles.worldSection}>
-                  <VisualInventory items={inventory} />
-                </View>
-              </ScrollView>
+
+                {activeTab === 'command' ? (
+                  <View style={styles.commandContent}>
+                    <StatBars hp={hp} mana={mana} />
+                    <CommandDeck onSend={handleCommand} disabled={isThinking || isGameEnded} />
+                  </View>
+                ) : (
+                  <ScrollView
+                    style={styles.worldScroll}
+                    contentContainerStyle={styles.worldContent}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <StatBars hp={hp} mana={mana} />
+                    <View style={styles.worldSection}>
+                      <WorldMap location={location} visitedTiles={visitedTiles} />
+                    </View>
+                    <View style={styles.worldSection}>
+                      <VisualInventory items={inventory} />
+                    </View>
+                  </ScrollView>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -401,5 +483,66 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: Colors.border.subtle,
+  },
+  gameEndContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 16,
+    alignItems: 'center',
+  },
+  gameEndBanner: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    gap: 8,
+  },
+  victoryBanner: {
+    borderColor: 'rgba(0, 255, 136, 0.5)',
+    backgroundColor: 'rgba(0, 255, 136, 0.05)',
+  },
+  deathBanner: {
+    borderColor: 'rgba(255, 34, 68, 0.5)',
+    backgroundColor: 'rgba(255, 34, 68, 0.05)',
+  },
+  gameEndTitle: {
+    fontFamily: 'monospace',
+    fontSize: 20,
+    fontWeight: '700' as const,
+    letterSpacing: 4,
+  },
+  victoryText: {
+    color: '#00FF88',
+  },
+  deathText: {
+    color: '#FF2244',
+  },
+  gameEndSub: {
+    fontFamily: 'monospace',
+    fontSize: 11,
+    color: Colors.text.dim,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  restartButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.accent.cyan,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 4,
+  },
+  restartText: {
+    fontFamily: 'monospace',
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#020205',
+    letterSpacing: 2,
+  },
+  gameEndStats: {
+    width: '100%',
   },
 });

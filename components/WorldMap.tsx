@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,6 +9,7 @@ import Animated, {
   withDelay,
   Easing,
   interpolate,
+  SharedValue,
 } from 'react-native-reanimated';
 import Svg, { Line, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +22,7 @@ interface WorldMapProps {
   visitedTiles: Set<string>;
 }
 
-type NodeType = 'server' | 'firewall' | 'corrupted' | 'data' | 'terminal' | 'exit';
+type NodeType = 'recycle' | 'firewall' | 'neon' | 'source' | 'terminal' | 'trap';
 
 interface MapNode {
   id: string;
@@ -32,37 +33,59 @@ interface MapNode {
   visited: boolean;
 }
 
-function getNodeType(x: number, y: number): NodeType {
-  const seed = Math.abs(x * 7919 + y * 6271 + x * y * 31) % 100;
-  if (seed < 15) return 'server';
-  if (seed < 30) return 'firewall';
-  if (seed < 48) return 'corrupted';
-  if (seed < 60) return 'data';
-  if (seed < 75) return 'terminal';
-  return 'exit';
+function getAct(x: number, y: number): 1 | 2 | 3 {
+  const dist = Math.abs(x) + Math.abs(y);
+  if (dist >= 5) return 1;
+  if (dist >= 2) return 2;
+  return 3;
 }
 
+function getNodeType(x: number, y: number): NodeType {
+  if (x === 0 && y === 0) return 'terminal';
+  const act = getAct(x, y);
+  const seed = Math.abs(x * 7919 + y * 6271 + x * y * 31) % 100;
+  if (act === 1) {
+    if (seed < 20) return 'firewall';
+    if (seed < 35) return 'trap';
+    return 'recycle';
+  }
+  if (act === 2) {
+    if (seed < 25) return 'firewall';
+    if (seed < 40) return 'trap';
+    return 'neon';
+  }
+  if (seed < 30) return 'trap';
+  return 'source';
+}
+
+const ACT1_NAMES = [
+  'Recycle Bin', 'Deleted Files', 'Old Cache', 'Temp Folder',
+  'Junk Data', 'Crashed Program', 'Format Graveyard', 'Defrag Zone',
+];
+const ACT2_NAMES = [
+  'Neon Gate', 'Fake Mall', 'NPC Blvd', 'Holo Plaza',
+  'Pixel Market', 'Clone Alley', 'Sim Square', 'Data Highway',
+];
+const ACT3_NAMES = [
+  'White Void', 'Monolith Hall', 'Source Code', 'Root Access',
+  'Kernel Bridge', 'Near Terminal',
+];
+
 function getLocationLabel(x: number, y: number): string {
-  const NAMES = [
-    'Corrupted Lobby', 'Server Room B', 'Blue Screen of Death',
-    'Packet Graveyard', 'Null Sector', 'Memory Leak Canyon',
-    'Recursive Corridor', 'Deprecated API Ruins', 'Firewall Gate',
-    'The Stack Overflow', 'Root Access Chamber', 'Cache Wasteland',
-    'Segfault Caverns', 'Kernel Panic Zone', 'Binary Swamp',
-    'Thread Pool', 'Registry Catacombs', 'The Sandbox',
-    'Daemon\'s Den', 'Exit Node Approach',
-  ];
-  const idx = Math.abs(x * 7 + y * 13 + x * y * 3) % NAMES.length;
-  return NAMES[idx];
+  if (x === 0 && y === 0) return 'TERMINAL ZERO';
+  const act = getAct(x, y);
+  const pool = act === 1 ? ACT1_NAMES : act === 2 ? ACT2_NAMES : ACT3_NAMES;
+  const idx = Math.abs(x * 7 + y * 13 + x * y * 3) % pool.length;
+  return pool[idx];
 }
 
 const NODE_CONFIG: Record<NodeType, { icon: string; set: 'ion' | 'mci'; color: string; borderColor: string }> = {
-  server: { icon: 'server', set: 'mci', color: '#bd00ff', borderColor: 'rgba(189, 0, 255, 0.6)' },
+  recycle: { icon: 'delete-outline', set: 'mci', color: '#888899', borderColor: 'rgba(136, 136, 153, 0.5)' },
   firewall: { icon: 'shield-alert', set: 'mci', color: '#FF2244', borderColor: 'rgba(255, 34, 68, 0.6)' },
-  corrupted: { icon: 'alert-decagram', set: 'mci', color: '#9B7FD4', borderColor: 'rgba(155, 127, 212, 0.5)' },
-  data: { icon: 'database', set: 'mci', color: '#00FF88', borderColor: 'rgba(0, 255, 136, 0.5)' },
-  terminal: { icon: 'terminal', set: 'ion', color: '#00D4FF', borderColor: 'rgba(0, 212, 255, 0.5)' },
-  exit: { icon: 'exit-run', set: 'mci', color: '#FFB020', borderColor: 'rgba(255, 176, 32, 0.5)' },
+  neon: { icon: 'city-variant', set: 'mci', color: '#bd00ff', borderColor: 'rgba(189, 0, 255, 0.6)' },
+  source: { icon: 'code-braces', set: 'mci', color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.5)' },
+  terminal: { icon: 'exit-run', set: 'mci', color: '#FFB020', borderColor: 'rgba(255, 176, 32, 0.8)' },
+  trap: { icon: 'alert-decagram', set: 'mci', color: '#FF4444', borderColor: 'rgba(255, 68, 68, 0.5)' },
 };
 
 const MAP_SIZE = 280;
@@ -120,7 +143,7 @@ function PlayerNode() {
         <MaterialCommunityIcons name="account-circle" size={18} color="#020205" />
       </Animated.View>
       <View style={styles.youAreHereBadge}>
-        <Text style={styles.youAreHereText}>YOU ARE HERE</Text>
+        <Text style={styles.youAreHereText}>USER 001</Text>
       </View>
     </View>
   );
@@ -181,11 +204,7 @@ function SurroundingNode({ node, index }: { node: MapNode; index: number }) {
       ]}
     >
       <View style={[styles.nodeGlowInner, { backgroundColor: config.color }]} />
-      {config.set === 'mci' ? (
-        <MaterialCommunityIcons name={config.icon as any} size={16} color={config.color} />
-      ) : (
-        <Ionicons name={config.icon as any} size={16} color={config.color} />
-      )}
+      <MaterialCommunityIcons name={config.icon as any} size={16} color={config.color} />
     </Animated.View>
   );
 }
@@ -220,7 +239,7 @@ function GlitchOverlay() {
   const glitch3 = useSharedValue(0);
 
   useEffect(() => {
-    const runGlitch = (sv: Animated.SharedValue<number>, delay: number) => {
+    const runGlitch = (sv: SharedValue<number>, delay: number) => {
       sv.value = withRepeat(
         withDelay(delay,
           withSequence(
@@ -290,11 +309,11 @@ function NodeLabel({ node }: { node: MapNode }) {
   if (!node.visited) return null;
 
   const isFirewall = node.type === 'firewall';
-  const isExit = node.type === 'exit';
-  const borderCol = isFirewall ? 'rgba(255, 34, 68, 0.5)' : isExit ? 'rgba(255, 176, 32, 0.5)' : 'rgba(0, 255, 136, 0.4)';
-  const textCol = isFirewall ? '#FF4466' : isExit ? '#FFB020' : '#0aff00';
+  const isTerminal = node.type === 'terminal';
+  const isTrap = node.type === 'trap';
+  const borderCol = isFirewall ? 'rgba(255, 34, 68, 0.5)' : isTerminal ? 'rgba(255, 176, 32, 0.7)' : isTrap ? 'rgba(255, 68, 68, 0.5)' : 'rgba(0, 255, 136, 0.4)';
+  const textCol = isFirewall ? '#FF4466' : isTerminal ? '#FFB020' : isTrap ? '#FF4444' : '#0aff00';
 
-  const labelX = node.x < CENTER ? node.x - 30 : node.x - 30;
   const labelY = node.y < CENTER ? node.y - NODE_RADIUS - 16 : node.y + NODE_RADIUS + 4;
 
   return (
@@ -302,7 +321,7 @@ function NodeLabel({ node }: { node: MapNode }) {
       style={[
         styles.nodeLabel,
         {
-          left: Math.max(2, Math.min(labelX, MAP_SIZE - 72)),
+          left: Math.max(2, Math.min(node.x - 30, MAP_SIZE - 72)),
           top: Math.max(2, Math.min(labelY, MAP_SIZE - 16)),
           borderColor: borderCol,
         },
@@ -316,6 +335,10 @@ function NodeLabel({ node }: { node: MapNode }) {
 }
 
 export default function WorldMap({ location, visitedTiles }: WorldMapProps) {
+  const act = getAct(location.x, location.y);
+  const distFromCenter = Math.abs(location.x) + Math.abs(location.y);
+  const actLabel = act === 1 ? 'RECYCLE BIN' : act === 2 ? 'NEON CITY' : 'THE SOURCE';
+
   const nodes = useMemo(() => {
     const result: MapNode[] = [];
     const angles = [0, 45, 90, 135, 180, 225, 270, 315];
@@ -348,7 +371,7 @@ export default function WorldMap({ location, visitedTiles }: WorldMapProps) {
       <View style={styles.header}>
         <Text style={styles.headerText}>SYSTEM MAP</Text>
         <Text style={styles.headerDivider}>//</Text>
-        <Text style={styles.headerSub}>UNKNOWN TERRITORY</Text>
+        <Text style={styles.headerSub}>{actLabel}</Text>
       </View>
 
       <View style={styles.mapContainer}>
@@ -398,6 +421,7 @@ export default function WorldMap({ location, visitedTiles }: WorldMapProps) {
         <MaterialCommunityIcons name="map-marker-radius" size={12} color={Colors.accent.cyan} />
         <Text style={styles.footerLocation}>{location.name}</Text>
         <Text style={styles.footerCoords}>[{location.x},{location.y}]</Text>
+        <Text style={styles.footerDist}>{distFromCenter} tiles to [0,0]</Text>
       </View>
     </View>
   );
@@ -606,5 +630,11 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     fontSize: 9,
     color: Colors.text.dim,
+  },
+  footerDist: {
+    fontFamily: 'monospace',
+    fontSize: 8,
+    color: '#FFB020',
+    marginLeft: 4,
   },
 });
