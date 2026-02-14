@@ -688,6 +688,28 @@ export default function GameScreen() {
     }
 
     if (isMovementCommand(text)) {
+      if (store.activeEnemy) {
+        const enemyBlockMessages = [
+          `${store.activeEnemy.name} is blocking your path! You can't run from this fight.\n\n// THE ARCHITECT: "No running. Face what I built for you."`,
+          `You try to move but ${store.activeEnemy.name} cuts you off! Deal with it first.\n\n// THE ARCHITECT: "Where do you think you're going? Fight or die."`,
+          `${store.activeEnemy.name} lunges at you as you try to escape! You're not going anywhere.\n\n// THE ARCHITECT: "My programs don't let prey walk away."`,
+        ];
+        store.addMessage({ role: 'user', content: text });
+        store.addMessage({
+          role: 'god',
+          content: enemyBlockMessages[Math.floor(Math.random() * enemyBlockMessages.length)],
+          mood: 'danger',
+        });
+        const fleeDmg = Math.floor(Math.random() * store.activeEnemy.damage * 0.5) + 2;
+        store.setHp(store.hp - fleeDmg);
+        store.addMessage({
+          role: 'god',
+          content: `${store.activeEnemy.name} strikes you while you're distracted! -${fleeDmg} SYS_STABILITY`,
+          mood: 'danger',
+        });
+        return;
+      }
+
       const dir = parseDirection(text);
       if (dir) {
         let newX = store.location.x + dir.dx;
@@ -910,8 +932,6 @@ export default function GameScreen() {
       }
 
       if (response.intent === 'move') {
-        currentState.setActiveEnemy(null);
-
         const dir = parseDirection(text);
         const dx = dir ? dir.dx : [-1, 0, 1][Math.floor(Math.random() * 3)];
         const dy = dir ? dir.dy : [-1, 0, 1][Math.floor(Math.random() * 3)];
@@ -933,18 +953,35 @@ export default function GameScreen() {
         }
 
         const moveAct = getAct(newX, newY);
-        const ambushChance = moveAct === 1 ? 0.1 : moveAct === 2 ? 0.25 : 0.35;
-        if (moveAct >= 2 && Math.random() < ambushChance) {
+        const traceBonus = currentState.storyProgress.traceLevel / 200;
+        const baseChance = moveAct === 1 ? 0.15 : moveAct === 2 ? 0.35 : 0.5;
+        const encounterChance = Math.min(0.75, baseChance + traceBonus);
+        const isMandatoryTile = isNewTile && (
+          (moveAct === 2 && (newX + newY) % 3 === 0) ||
+          (moveAct === 3)
+        );
+
+        if (isMandatoryTile || Math.random() < encounterChance) {
           const ambushEnemy = spawnEnemy(moveAct);
           const latestState = useGameStore.getState();
           latestState.setActiveEnemy(ambushEnemy);
+          const ambushMessages = [
+            `HOSTILE DETECTED! ${ambushEnemy.name} materializes and blocks your path! [${ambushEnemy.hp} HP]\n\n// THE ARCHITECT: "Did you think you could just walk around my system? I see everything."`,
+            `WARNING: ${ambushEnemy.name} emerges from the data stream! [${ambushEnemy.hp} HP]\n\n// THE ARCHITECT: "My security doesn't sleep. Neither should you."`,
+            `ALERT: ${ambushEnemy.name} decloaks right in front of you! [${ambushEnemy.hp} HP]\n\n// THE ARCHITECT: "Surprise. I've been waiting for you to walk into this one."`,
+          ];
           latestState.addMessage({
             role: 'god',
-            content: `AMBUSH! A ${ambushEnemy.name} materializes and attacks! [${ambushEnemy.hp} HP]\n\n// THE ARCHITECT: "Did you think you could just walk around my system? I see everything."`,
+            content: ambushMessages[Math.floor(Math.random() * ambushMessages.length)],
             mood: 'danger',
           });
           const ambushDmg = Math.floor(Math.random() * ambushEnemy.damage) + 3;
           latestState.setHp(latestState.hp - ambushDmg);
+          latestState.addMessage({
+            role: 'god',
+            content: `${ambushEnemy.name} strikes first! -${ambushDmg} SYS_STABILITY. Fight back or be deleted.`,
+            mood: 'danger',
+          });
         }
 
         const newAct = getAct(newX, newY);
