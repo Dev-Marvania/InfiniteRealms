@@ -32,6 +32,10 @@ import StatBars from '@/components/StatBars';
 import TraceMeter from '@/components/TraceMeter';
 import SceneReveal, { getNodeType } from '@/components/SceneReveal';
 import HackingMinigame from '@/components/HackingMinigame';
+import SearchMinigame from '@/components/SearchMinigame';
+import AttackMinigame from '@/components/AttackMinigame';
+import RestMinigame from '@/components/RestMinigame';
+import MagicMinigame from '@/components/MagicMinigame';
 import GlitchOverlay from '@/components/GlitchOverlay';
 import LoreViewer from '@/components/LoreViewer';
 import EnemyBar from '@/components/EnemyBar';
@@ -148,6 +152,10 @@ export default function GameScreen() {
 
   const [hackMinigameVisible, setHackMinigameVisible] = useState(false);
   const [loreViewerVisible, setLoreViewerVisible] = useState(false);
+  const [searchMinigameVisible, setSearchMinigameVisible] = useState(false);
+  const [attackMinigameVisible, setAttackMinigameVisible] = useState(false);
+  const [restMinigameVisible, setRestMinigameVisible] = useState(false);
+  const [magicMinigameVisible, setMagicMinigameVisible] = useState(false);
   const pendingHackCommandRef = useRef<string | null>(null);
 
   const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
@@ -202,6 +210,10 @@ export default function GameScreen() {
     revealedTilesRef.current = new Set(['4,4']);
     setSceneReveal(null);
     setHackMinigameVisible(false);
+    setSearchMinigameVisible(false);
+    setAttackMinigameVisible(false);
+    setRestMinigameVisible(false);
+    setMagicMinigameVisible(false);
     setLoreViewerVisible(false);
   }, []);
 
@@ -295,6 +307,257 @@ export default function GameScreen() {
     playSfx(success ? 'hack' : 'hack').catch(() => {});
   }, []);
 
+  const handleSearchComplete = useCallback((success: boolean) => {
+    setSearchMinigameVisible(false);
+    const store = useGameStore.getState();
+    const act = getAct(store.location.x, store.location.y);
+
+    if (success) {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+
+      const tileKey = `${store.location.x},${store.location.y}`;
+      const loreEntry = getLoreForTile(tileKey);
+      if (loreEntry && !store.storyProgress.discoveredLore.includes(loreEntry.id)) {
+        store.discoverLore(loreEntry.id);
+        store.addMessage({
+          role: 'god',
+          content: `DECRYPTION COMPLETE. Data log "${loreEntry.title}" extracted.\n\n// THE ARCHITECT: "You decrypted THAT? That was classified. Stop reading my personal files."`,
+          mood: 'mystic',
+        });
+      }
+
+      const itemPools: Record<number, Array<{ name: string; icon: string; description: string }>> = {
+        1: [
+          { name: 'Rusty Debug Tool', icon: 'debug', description: 'Old but functional.' },
+          { name: 'Patch 0.9', icon: 'patch', description: 'Restores some stability.' },
+          { name: 'Broken Firewall Shard', icon: 'firewall', description: 'Blocks one hit.' },
+        ],
+        2: [
+          { name: 'Energy Cell', icon: 'memory', description: 'Restores energy.' },
+          { name: 'Proxy Mask', icon: 'proxy', description: 'Hides from scanners.' },
+          { name: 'Zero-Day Exploit', icon: 'exploit', description: 'Auto-hack next target.' },
+        ],
+        3: [
+          { name: 'Source Code Fragment', icon: 'data', description: 'Powerful data shard.' },
+          { name: 'Root Access Key', icon: 'rootkit', description: 'Admin privileges.' },
+        ],
+      };
+
+      let item: any = undefined;
+      if (act === 1 && !store.storyProgress.hasFirewallKey && Math.random() < 0.35) {
+        item = { id: Date.now().toString() + Math.random().toString(36).substr(2, 9), name: 'Firewall Key', icon: 'token', description: 'Unlocks the Firewall Gate to Neon City.' };
+        store.updateStoryProgress({ hasFirewallKey: true });
+        store.addStoryEvent('Found the Firewall Key via decryption', act);
+      } else if (act === 2 && !store.storyProgress.hasAdminKeycard && Math.random() < 0.25) {
+        item = { id: Date.now().toString() + Math.random().toString(36).substr(2, 9), name: 'Admin Keycard', icon: 'token', description: 'Admin-level access to The Source.' };
+        store.updateStoryProgress({ hasAdminKeycard: true });
+        store.addStoryEvent('Found the Admin Keycard via decryption', act);
+      } else {
+        const pool = itemPools[act] || itemPools[1];
+        const template = pool[Math.floor(Math.random() * pool.length)];
+        item = { ...template, id: Date.now().toString() + Math.random().toString(36).substr(2, 9) };
+      }
+
+      store.addItem(item);
+      setTimeout(() => playSfx('item').catch(() => {}), 300);
+
+      store.addMessage({
+        role: 'god',
+        content: `DATA DECRYPTED. You pulled ${item.name} from the corrupted files.\n\n// THE ARCHITECT: "You solved that? Lucky guess. The next encryption is harder."`,
+        mood: 'mystic',
+      });
+      store.setMood('mystic');
+    } else {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
+      const trapDmg = act === 1 ? -5 : act === 2 ? -8 : -12;
+      store.setHp(store.hp + trapDmg);
+      store.addTrace(5);
+      store.addMessage({
+        role: 'god',
+        content: `DECRYPTION FAILED. The file self-destructed and triggered a security shock.\n\n// THE ARCHITECT: "Too slow. That data is gone now. And so are some of your circuits."`,
+        mood: 'danger',
+      });
+      store.setMood('danger');
+      if (store.hp + trapDmg <= 0) {
+        store.addMessage({ role: 'god', content: 'SYSTEM NOTICE: User 001 stability has reached 0%. Initiating recycling protocol.', mood: 'danger' });
+        store.setGameStatus('dead');
+      }
+    }
+    store.setThinking(false);
+    playSfx('search').catch(() => {});
+  }, []);
+
+  const handleAttackComplete = useCallback((result: 'critical' | 'hit' | 'weak' | 'miss') => {
+    setAttackMinigameVisible(false);
+    const store = useGameStore.getState();
+    const act = getAct(store.location.x, store.location.y);
+
+    if (!store.activeEnemy) {
+      const enemy = spawnEnemy(act);
+      store.setActiveEnemy(enemy);
+    }
+
+    const enemy = useGameStore.getState().activeEnemy;
+    if (!enemy) { store.setThinking(false); return; }
+
+    const dmgMultiplier = result === 'critical' ? 2.0 : result === 'hit' ? 1.0 : result === 'weak' ? 0.5 : 0.2;
+    const baseDmg = Math.floor(Math.random() * 8) + 8 + act * 3;
+    const playerDmg = Math.floor(baseDmg * dmgMultiplier);
+
+    store.damageEnemy(playerDmg);
+    const afterAttack = useGameStore.getState();
+
+    const counterReduction = result === 'critical' ? 0.5 : result === 'hit' ? 1.0 : 1.3;
+    const counterDmg = Math.floor((Math.floor(Math.random() * enemy.damage) + Math.ceil(enemy.damage * 0.3)) * counterReduction);
+    store.setHp(useGameStore.getState().hp - counterDmg);
+    store.setMana(Math.max(0, useGameStore.getState().mana - 5));
+
+    const resultLabel = result === 'critical' ? 'CRITICAL HIT' : result === 'hit' ? 'DIRECT HIT' : result === 'weak' ? 'GLANCING BLOW' : 'MISSED';
+
+    if (!afterAttack.activeEnemy) {
+      store.updateStoryProgress({ enemiesDefeated: store.storyProgress.enemiesDefeated + 1 });
+      store.addStoryEvent(`Defeated ${enemy.name} with a ${resultLabel}`, store.storyProgress.currentAct);
+      store.addMessage({
+        role: 'god',
+        content: `${resultLabel}! You deal ${playerDmg} damage. ${enemy.name} is DELETED. It struck back for ${counterDmg} on the way out.\n\n// THE ARCHITECT: "Fine. It's dead. But I have an army. You have... you."`,
+        mood: 'mystic',
+      });
+    } else {
+      store.addMessage({
+        role: 'god',
+        content: `${resultLabel}! You deal ${playerDmg} damage to ${enemy.name} [${afterAttack.activeEnemy.hp}/${enemy.maxHp} HP]. It counters for ${counterDmg}.\n\n// THE ARCHITECT: "${result === 'critical' ? 'Lucky shot. Don\'t get used to it.' : result === 'miss' ? 'Ha! You missed! My programs are laughing at you.' : 'Keep swinging. See how long you last.'}"`,
+        mood: 'danger',
+      });
+    }
+
+    store.addTrace(8);
+    store.setMood(result === 'critical' ? 'mystic' : 'danger');
+
+    if (useGameStore.getState().hp <= 0 && useGameStore.getState().gameStatus === 'playing') {
+      store.addMessage({ role: 'god', content: 'SYSTEM NOTICE: User 001 stability has reached 0%. Initiating recycling protocol.', mood: 'danger' });
+      store.setGameStatus('dead');
+    }
+
+    store.setThinking(false);
+    playSfx('attack').catch(() => {});
+    try { result === 'critical' ? Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); } catch {}
+  }, []);
+
+  const handleRestComplete = useCallback((success: boolean) => {
+    setRestMinigameVisible(false);
+    const store = useGameStore.getState();
+    const act = getAct(store.location.x, store.location.y);
+
+    if (success) {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+      const hpGain = act === 1 ? Math.floor(Math.random() * 8) + 8 : act === 2 ? Math.floor(Math.random() * 6) + 5 : Math.floor(Math.random() * 4) + 3;
+      const manaGain = act === 1 ? Math.floor(Math.random() * 12) + 10 : act === 2 ? Math.floor(Math.random() * 8) + 6 : Math.floor(Math.random() * 5) + 3;
+      store.setHp(Math.min(100, store.hp + hpGain));
+      store.setMana(Math.min(100, store.mana + manaGain));
+      store.addMessage({
+        role: 'god',
+        content: `MEMORY REBOOT COMPLETE. Systems restored: +${hpGain} SYS_STABILITY, +${manaGain} ENERGY.\n\nYour circuits hum back to life. The maintenance port provided a clean power cycle.\n\n// THE ARCHITECT: "Enjoy the nap. It's the last quiet moment you'll get."`,
+        mood: 'neutral',
+      });
+      store.setMood('neutral');
+    } else {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
+      const hpGain = act === 1 ? 2 : 1;
+      const manaGain = act === 1 ? 3 : 2;
+      store.setHp(Math.min(100, store.hp + hpGain));
+      store.setMana(Math.min(100, store.mana + manaGain));
+      const ambushDmg = act >= 2 ? -(Math.floor(Math.random() * 5) + 3) : 0;
+      if (ambushDmg < 0) store.setHp(useGameStore.getState().hp + ambushDmg);
+      store.addMessage({
+        role: 'god',
+        content: `MEMORY REBOOT FAILED. Incomplete power cycle — minimal recovery: +${hpGain} SYS_STABILITY, +${manaGain} ENERGY.${ambushDmg < 0 ? ` A patrol spotted you during the failed reboot — ${Math.abs(ambushDmg)} damage!` : ''}\n\n// THE ARCHITECT: "Can't even reboot properly? Pathetic."`,
+        mood: 'danger',
+      });
+      store.setMood('danger');
+    }
+
+    store.addTrace(10);
+    store.setLastRestTile(`${store.location.x},${store.location.y}`);
+
+    if (useGameStore.getState().hp <= 0 && useGameStore.getState().gameStatus === 'playing') {
+      store.addMessage({ role: 'god', content: 'SYSTEM NOTICE: User 001 stability has reached 0%. Initiating recycling protocol.', mood: 'danger' });
+      store.setGameStatus('dead');
+    }
+
+    store.setThinking(false);
+    playSfx('rest').catch(() => {});
+  }, []);
+
+  const handleMagicComplete = useCallback((success: boolean) => {
+    setMagicMinigameVisible(false);
+    const store = useGameStore.getState();
+    const act = getAct(store.location.x, store.location.y);
+
+    store.setMana(Math.max(0, store.mana - 15));
+
+    if (success) {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+      store.reduceTrace(10);
+
+      const tileKey = `${store.location.x},${store.location.y}`;
+      const loreEntry = getLoreForTile(tileKey);
+      if (loreEntry && !store.storyProgress.discoveredLore.includes(loreEntry.id)) {
+        store.discoverLore(loreEntry.id);
+        store.addMessage({
+          role: 'god',
+          content: `CODE COMPILED. Scan reveals data log "${loreEntry.title}".\n\n// THE ARCHITECT: "You compiled THAT? Those are my private logs!"`,
+          mood: 'mystic',
+        });
+      }
+
+      if (store.activeEnemy) {
+        const magicDmg = act === 1 ? 30 : act === 2 ? 35 : 40;
+        const enemyName = store.activeEnemy.name;
+        store.damageEnemy(magicDmg);
+        const after = useGameStore.getState().activeEnemy;
+        if (!after) {
+          store.updateStoryProgress({ enemiesDefeated: store.storyProgress.enemiesDefeated + 1 });
+          store.addMessage({
+            role: 'god',
+            content: `CODE COMPILED SUCCESSFULLY. Energy surge deals ${magicDmg} damage — ${enemyName} OVERLOADED and destroyed.\n\n// THE ARCHITECT: "You compiled a kill script?! That's not fair!"`,
+            mood: 'mystic',
+          });
+        } else {
+          store.addMessage({
+            role: 'god',
+            content: `CODE COMPILED. Energy surge hits ${enemyName} for ${magicDmg} damage [${after.hp}/${store.activeEnemy?.maxHp || after.maxHp} HP].\n\n// THE ARCHITECT: "Nice code. But my programs have error handling."`,
+            mood: 'danger',
+          });
+        }
+      } else {
+        store.addMessage({
+          role: 'god',
+          content: 'CODE COMPILED SUCCESSFULLY. A wave of clean energy pulses outward. Your trace signature drops.\n\n// THE ARCHITECT: "Great. You wrote working code. Don\'t let it go to your head."',
+          mood: 'mystic',
+        });
+      }
+      store.setMood('mystic');
+    } else {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
+      const backfireDmg = act === 1 ? -8 : act === 2 ? -12 : -15;
+      store.setHp(store.hp + backfireDmg);
+      store.addTrace(8);
+      store.addMessage({
+        role: 'god',
+        content: `COMPILATION ERROR. The code backfired — ${Math.abs(backfireDmg)} damage to your own systems.\n\n// THE ARCHITECT: "Syntax error on line 1. Did you even test that before running it?"`,
+        mood: 'danger',
+      });
+      store.setMood('danger');
+      if (store.hp + backfireDmg <= 0) {
+        store.addMessage({ role: 'god', content: 'SYSTEM NOTICE: User 001 stability has reached 0%. Initiating recycling protocol.', mood: 'danger' });
+        store.setGameStatus('dead');
+      }
+    }
+
+    store.setThinking(false);
+    playSfx('search').catch(() => {});
+  }, []);
+
   const handleCommand = useCallback(async (text: string) => {
     const store = useGameStore.getState();
     if (store.gameStatus !== 'playing') return;
@@ -326,9 +589,73 @@ export default function GameScreen() {
         });
         return;
       }
+
+      store.addMessage({ role: 'user', content: text });
+      store.setThinking(true);
+      store.addMessage({
+        role: 'god',
+        content: 'INITIATING MEMORY REBOOT...\n\n// THE ARCHITECT: "Trying to rest? Let\'s see if your memory is as sharp as you think."',
+        mood: 'neutral',
+      });
+      setTimeout(() => {
+        setRestMinigameVisible(true);
+        store.setThinking(false);
+      }, 1000);
+      return;
     }
 
-    const isHackCommand = /\b(hack|rewrite|code|sudo|exploit|inject|override|crack|decrypt|bypass)\b/.test(lower);
+    const isAttackCommand = /\b(attack|fight|strike|slash|hit|kill|slay|stab|swing|delete|terminate)\b/.test(lower);
+
+    if (isAttackCommand) {
+      store.addMessage({ role: 'user', content: text });
+      store.setThinking(true);
+      store.addMessage({
+        role: 'god',
+        content: 'COMBAT ENGAGED. Time your strike carefully.\n\n// THE ARCHITECT: "Oh, you want to fight? Let\'s see your timing."',
+        mood: 'danger',
+      });
+      setTimeout(() => {
+        setAttackMinigameVisible(true);
+        store.setThinking(false);
+      }, 800);
+      return;
+    }
+
+    const isMagicCommand = /\b(cast|spell|magic|fireball|heal|enchant|invoke|conjure|channel|compile)\b/.test(lower);
+
+    if (isMagicCommand) {
+      store.addMessage({ role: 'user', content: text });
+      store.setThinking(true);
+      store.addMessage({
+        role: 'god',
+        content: 'COMPILING CODE...\n\n// THE ARCHITECT: "Writing code on the fly? Let\'s see if you can even find a bug."',
+        mood: 'mystic',
+      });
+      setTimeout(() => {
+        setMagicMinigameVisible(true);
+        store.setThinking(false);
+      }, 1000);
+      return;
+    }
+
+    const isSearchCommand = /\b(search|examine|inspect|investigate|explore|find|loot|grab|take|pick|scan|query)\b/.test(lower);
+
+    if (isSearchCommand) {
+      store.addMessage({ role: 'user', content: text });
+      store.setThinking(true);
+      store.addMessage({
+        role: 'god',
+        content: 'SCANNING LOCAL DATA...\n\n// THE ARCHITECT: "Searching through my files? You\'ll need to decrypt them first."',
+        mood: 'neutral',
+      });
+      setTimeout(() => {
+        setSearchMinigameVisible(true);
+        store.setThinking(false);
+      }, 1000);
+      return;
+    }
+
+    const isHackCommand = /\b(hack|rewrite|sudo|exploit|inject|override|crack|decrypt|bypass)\b/.test(lower);
 
     if (isHackCommand) {
       store.addMessage({ role: 'user', content: text });
@@ -907,6 +1234,30 @@ export default function GameScreen() {
         visible={hackMinigameVisible}
         act={storyProgress.currentAct}
         onComplete={handleHackComplete}
+      />
+
+      <SearchMinigame
+        visible={searchMinigameVisible}
+        act={storyProgress.currentAct}
+        onComplete={handleSearchComplete}
+      />
+
+      <AttackMinigame
+        visible={attackMinigameVisible}
+        act={storyProgress.currentAct}
+        onComplete={handleAttackComplete}
+      />
+
+      <RestMinigame
+        visible={restMinigameVisible}
+        act={storyProgress.currentAct}
+        onComplete={handleRestComplete}
+      />
+
+      <MagicMinigame
+        visible={magicMinigameVisible}
+        act={storyProgress.currentAct}
+        onComplete={handleMagicComplete}
       />
 
       <LoreViewer
