@@ -15,14 +15,13 @@ interface NarrativeStreamProps {
   isThinking: boolean;
 }
 
-function TypewriterText({ text, isLatest, onComplete }: { text: string; isLatest: boolean; onComplete?: () => void }) {
+function TypewriterText({ text, isLatest }: { text: string; isLatest: boolean }) {
   const [displayed, setDisplayed] = useState(isLatest ? '' : text);
   const indexRef = useRef(isLatest ? 0 : text.length);
 
   useEffect(() => {
     if (!isLatest || indexRef.current >= text.length) {
       setDisplayed(text);
-      if (onComplete) onComplete();
       return;
     }
 
@@ -31,7 +30,6 @@ function TypewriterText({ text, isLatest, onComplete }: { text: string; isLatest
       setDisplayed(text.slice(0, indexRef.current));
       if (indexRef.current >= text.length) {
         clearInterval(interval);
-        if (onComplete) onComplete();
       }
     }, 18);
 
@@ -106,12 +104,15 @@ export default function NarrativeStream({ history, isThinking }: NarrativeStream
     scrollToEnd();
   }, [history.length, isThinking, scrollToEnd]);
 
-  const handleTypewriterComplete = useCallback((index: number, content: string) => {
-    if (index > lastSpokenIndex.current) {
-      lastSpokenIndex.current = index;
-      speakText(content);
+  useEffect(() => {
+    if (history.length === 0) return;
+    const lastIndex = history.length - 1;
+    const lastEntry = history[lastIndex];
+    if (lastEntry.role === 'god' && lastIndex > lastSpokenIndex.current) {
+      lastSpokenIndex.current = lastIndex;
+      speakText(lastEntry.content);
     }
-  }, []);
+  }, [history.length]);
 
   return (
     <ScrollView
@@ -139,7 +140,6 @@ export default function NarrativeStream({ history, isThinking }: NarrativeStream
               <TypewriterText
                 text={entry.content}
                 isLatest={isLatestGod}
-                onComplete={isLatestGod ? () => handleTypewriterComplete(i, entry.content) : undefined}
               />
             ) : (
               <Text style={styles.userText}>{`> ${entry.content}`}</Text>

@@ -14,10 +14,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
+import * as Speech from 'expo-speech';
 import Colors from '@/constants/colors';
 import { useGameStore, getAct, getCurrentObjective } from '@/lib/useGameStore';
 import { processCommand, getLocationName } from '@/lib/gameEngine';
-import { playSfx, getActionSound } from '@/lib/soundManager';
+import { playSfx, getActionSound, stopAmbient } from '@/lib/soundManager';
 import { getApiUrl } from '@/lib/query-client';
 import GodAvatar from '@/components/GodAvatar';
 import NarrativeStream from '@/components/NarrativeStream';
@@ -115,6 +116,8 @@ export default function GameScreen() {
   }, []);
 
   const handleRestart = useCallback(() => {
+    Speech.stop();
+    stopAmbient().catch(() => {});
     useGameStore.getState().resetGame();
     setActiveTab('command');
     revealedTilesRef.current = new Set(['4,4']);
@@ -520,6 +523,18 @@ export default function GameScreen() {
                       {'SYSTEM'}
                     </Text>
                   </Pressable>
+
+                  <Pressable
+                    onPress={handleRestart}
+                    style={styles.resetTab}
+                    testID="reset-button"
+                  >
+                    <MaterialCommunityIcons
+                      name="restart"
+                      size={14}
+                      color={Colors.accent.danger}
+                    />
+                  </Pressable>
                 </View>
 
                 {activeTab === 'command' ? (
@@ -647,6 +662,15 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: Colors.accent.cyan,
+  },
+  resetTab: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 34, 68, 0.2)',
   },
   commandContent: {
     flex: 1,
