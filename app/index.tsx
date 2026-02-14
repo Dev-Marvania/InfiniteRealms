@@ -564,13 +564,13 @@ export default function GameScreen() {
 
     const lower = text.toLowerCase().trim();
 
-    const isEnergyAction = /\b(hack|rewrite|code|sudo|exploit|inject|override|crack|decrypt|bypass|attack|fight|strike|slash|hit|kill|slay|stab|swing|delete|terminate|cast|spell|magic|fireball|heal|enchant|invoke|conjure|channel|compile)\b/.test(lower);
+    const isEnergyAction = /\b(hack|rewrite|code|sudo|exploit|inject|override|crack|decrypt|bypass|cast|spell|magic|fireball|heal|enchant|invoke|conjure|channel|compile)\b/.test(lower);
 
     if (isEnergyAction && store.mana <= 0) {
       store.addMessage({ role: 'user', content: text });
       store.addMessage({
         role: 'god',
-        content: 'ERROR: ENERGY DEPLETED. Cannot execute command.\n\nYour systems are running on fumes. You need to rest or use an Energy Cell before you can attack, hack, or cast.\n\n// THE ARCHITECT: "Out of juice? What a shame. Maybe try resting — if you can afford the trace."',
+        content: 'ERROR: ENERGY DEPLETED. Cannot execute command.\n\nYour systems are running on fumes. You need to rest or use an Energy Cell before you can hack or cast.\n\n// THE ARCHITECT: "Out of juice? What a shame. Maybe try resting — if you can afford the trace."',
         mood: 'danger',
       });
       return;
@@ -580,7 +580,7 @@ export default function GameScreen() {
 
     if (isRestCommand) {
       const currentTileKey = `${store.location.x},${store.location.y}`;
-      if (store.lastRestTile === currentTileKey) {
+      if (store.lastRestTile === currentTileKey && !store.activeEnemy) {
         store.addMessage({ role: 'user', content: text });
         store.addMessage({
           role: 'god',

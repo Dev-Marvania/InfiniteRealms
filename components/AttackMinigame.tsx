@@ -221,7 +221,7 @@ export default function AttackMinigame({ visible, act, onComplete }: AttackMinig
               </Text>
             </Animated.View>
           ) : (
-            <Pressable onPress={handleStrike} disabled={struck}>
+            <Pressable onPress={handleStrike} disabled={struck} testID="strike-button">
               <Animated.View style={[styles.strikeButton, buttonAnimStyle]}>
                 <MaterialCommunityIcons
                   name="lightning-bolt"
