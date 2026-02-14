@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,6 +7,8 @@ import {
   ScrollView,
   Platform,
   Alert,
+  PanResponder,
+  LayoutChangeEvent,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,11 +92,42 @@ type SceneState = {
   locationName: string;
 } | null;
 
+const MIN_RATIO = 0.2;
+const MAX_RATIO = 0.7;
+const DEFAULT_RATIO = 0.45;
+
 export default function GameScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = React.useState<BottomTab>('command');
   const [sceneReveal, setSceneReveal] = React.useState<SceneState>(null);
   const revealedTilesRef = React.useRef<Set<string>>(new Set(['4,4']));
+
+  const [splitRatio, setSplitRatio] = useState(DEFAULT_RATIO);
+  const containerHeightRef = useRef(0);
+  const splitRatioRef = useRef(DEFAULT_RATIO);
+
+  const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
+    containerHeightRef.current = e.nativeEvent.layout.height;
+  }, []);
+
+  const panResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 3,
+        onPanResponderGrant: () => {
+          splitRatioRef.current = splitRatio;
+        },
+        onPanResponderMove: (_, gs) => {
+          if (containerHeightRef.current === 0) return;
+          const delta = gs.dy / containerHeightRef.current;
+          const newRatio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, splitRatioRef.current + delta));
+          setSplitRatio(newRatio);
+        },
+        onPanResponderRelease: () => {},
+      }),
+    [splitRatio],
+  );
 
   const hp = useGameStore((s) => s.hp);
   const mana = useGameStore((s) => s.mana);
@@ -425,8 +458,9 @@ export default function GameScreen() {
               paddingBottom: (insets.bottom || webBottomInset) + 4,
             },
           ]}
+          onLayout={onContainerLayout}
         >
-          <View style={styles.zoneA}>
+          <View style={[styles.zoneA, { flex: splitRatio }]}>
             <View style={styles.avatarContainer}>
               <GodAvatar isThinking={isThinking} mood={currentMood} />
             </View>
@@ -436,13 +470,18 @@ export default function GameScreen() {
             </View>
           </View>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <View style={styles.dividerDot} />
-            <View style={styles.dividerLine} />
+          <View style={styles.dividerHandle} {...panResponder.panHandlers}>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <View style={styles.dividerGrabber}>
+                <View style={styles.grabberBar} />
+                <View style={styles.grabberBar} />
+              </View>
+              <View style={styles.dividerLine} />
+            </View>
           </View>
 
-          <View style={styles.zoneB}>
+          <View style={[styles.zoneB, { flex: 1 - splitRatio }]}>
             {isGameEnded ? (
               <View style={styles.gameEndContainer}>
                 <View style={[styles.gameEndBanner, isVictory ? styles.victoryBanner : styles.deathBanner]}>
@@ -591,8 +630,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   zoneA: {
-    flex: 1,
-    minHeight: '42%',
+    overflow: 'hidden',
   },
   avatarContainer: {
     alignItems: 'center',
@@ -602,6 +640,10 @@ const styles = StyleSheet.create({
   },
   narrativeContainer: {
     flex: 1,
+  },
+  dividerHandle: {
+    paddingVertical: 8,
+    cursor: 'row-resize' as any,
   },
   divider: {
     flexDirection: 'row',
@@ -614,16 +656,21 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.border.subtle,
   },
-  dividerDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+  dividerGrabber: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingHorizontal: 12,
+  },
+  grabberBar: {
+    width: 24,
+    height: 2,
+    borderRadius: 1,
     backgroundColor: Colors.accent.cyan,
     opacity: 0.5,
   },
   zoneB: {
-    flex: 1,
-    minHeight: '42%',
+    overflow: 'hidden',
   },
   objectiveBar: {
     flexDirection: 'row',
