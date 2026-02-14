@@ -264,6 +264,34 @@ export default function GameScreen() {
     if (store.gameStatus !== 'playing') return;
 
     const lower = text.toLowerCase().trim();
+
+    const isEnergyAction = /\b(hack|rewrite|code|sudo|exploit|inject|override|crack|decrypt|bypass|attack|fight|strike|slash|hit|kill|slay|stab|swing|delete|terminate|cast|spell|magic|fireball|heal|enchant|invoke|conjure|channel|compile)\b/.test(lower);
+
+    if (isEnergyAction && store.mana <= 0) {
+      store.addMessage({ role: 'user', content: text });
+      store.addMessage({
+        role: 'god',
+        content: 'ERROR: ENERGY DEPLETED. Cannot execute command.\n\nYour systems are running on fumes. You need to rest or use an Energy Cell before you can attack, hack, or cast.\n\n// THE ARCHITECT: "Out of juice? What a shame. Maybe try resting — if you can afford the trace."',
+        mood: 'danger',
+      });
+      return;
+    }
+
+    const isRestCommand = /\b(rest|sleep|camp|meditate|sit|relax|recover|reboot|repair|recharge)\b/.test(lower);
+
+    if (isRestCommand) {
+      const currentTileKey = `${store.location.x},${store.location.y}`;
+      if (store.lastRestTile === currentTileKey) {
+        store.addMessage({ role: 'user', content: text });
+        store.addMessage({
+          role: 'god',
+          content: 'You already rested here. The maintenance port is drained. Move to a new location to find another power source.\n\n// THE ARCHITECT: "What, you thought rest was free? Move along."',
+          mood: 'neutral',
+        });
+        return;
+      }
+    }
+
     const isHackCommand = /\b(hack|rewrite|code|sudo|exploit|inject|override|crack|decrypt|bypass)\b/.test(lower);
 
     if (isHackCommand) {
@@ -371,20 +399,27 @@ export default function GameScreen() {
         currentState.setMana(currentState.mana + response.manaChange);
       }
       if (response.newItem) {
-        const item = {
-          ...response.newItem,
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        };
-        currentState.addItem(item);
-        setTimeout(() => playSfx('item').catch(() => {}), 300);
+        const itemName = response.newItem.name?.toLowerCase() || '';
+        const isDuplicateQuest =
+          (itemName.includes('firewall key') && currentState.storyProgress.hasFirewallKey) ||
+          (itemName.includes('admin keycard') && currentState.storyProgress.hasAdminKeycard);
 
-        const itemName = item.name.toLowerCase();
-        if (itemName.includes('firewall key')) {
-          currentState.addStoryEvent('Found the Firewall Key in the Recycle Bin', 1);
-        } else if (itemName.includes('admin keycard')) {
-          currentState.addStoryEvent('Found the Admin Keycard in Neon City', 2);
-        } else {
-          currentState.addStoryEvent(`Found: ${item.name}`, currentState.storyProgress.currentAct);
+        if (!isDuplicateQuest) {
+          const item = {
+            ...response.newItem,
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          };
+          currentState.addItem(item);
+          setTimeout(() => playSfx('item').catch(() => {}), 300);
+
+          const lowerItemName = item.name.toLowerCase();
+          if (lowerItemName.includes('firewall key')) {
+            currentState.addStoryEvent('Found the Firewall Key in the Recycle Bin', 1);
+          } else if (lowerItemName.includes('admin keycard')) {
+            currentState.addStoryEvent('Found the Admin Keycard in Neon City', 2);
+          } else {
+            currentState.addStoryEvent(`Found: ${item.name}`, currentState.storyProgress.currentAct);
+          }
         }
       }
 
@@ -416,6 +451,37 @@ export default function GameScreen() {
 
       if (response.intent === 'rest') {
         currentState.addTrace(10);
+        currentState.setLastRestTile(`${currentState.location.x},${currentState.location.y}`);
+      }
+
+      if (response.intent === 'magic') {
+        currentState.reduceTrace(10);
+
+        const magicTileKey = `${currentState.location.x},${currentState.location.y}`;
+        const loreEntry = getLoreForTile(magicTileKey);
+        if (loreEntry && !currentState.storyProgress.discoveredLore.includes(loreEntry.id)) {
+          currentState.discoverLore(loreEntry.id);
+          currentState.addMessage({
+            role: 'god',
+            content: `SCAN COMPLETE: Data log "${loreEntry.title}" decrypted from local memory.\n\n// THE ARCHITECT: "Stop reading my files."`,
+            mood: 'mystic',
+          });
+        }
+
+        if (currentState.activeEnemy) {
+          currentState.damageEnemy(25);
+          const enemy = useGameStore.getState().activeEnemy;
+          if (!enemy) {
+            currentState.addMessage({
+              role: 'god',
+              content: 'Your energy blast overloads the enemy\'s circuits. It disintegrates.\n\n// THE ARCHITECT: "Brute force. How elegant."',
+              mood: 'mystic',
+            });
+            currentState.updateStoryProgress({
+              enemiesDefeated: currentState.storyProgress.enemiesDefeated + 1,
+            });
+          }
+        }
       }
 
       if (response.intent === 'move') {
@@ -425,13 +491,18 @@ export default function GameScreen() {
         let newX = Math.max(-1, Math.min(5, currentState.location.x + dx));
         let newY = Math.max(-1, Math.min(5, currentState.location.y + dy));
         const locName = getLocationName(newX, newY);
-        currentState.setLocation({ x: newX, y: newY, name: locName });
-        currentState.visitTile(`${newX},${newY}`);
-        triggerSceneReveal(newX, newY, locName);
 
         const tileKey = `${newX},${newY}`;
-        if (!currentState.visitedTiles.has(tileKey)) {
+        const isNewTile = !currentState.visitedTiles.has(tileKey);
+
+        currentState.setLocation({ x: newX, y: newY, name: locName });
+        currentState.visitTile(tileKey);
+        triggerSceneReveal(newX, newY, locName);
+
+        if (isNewTile) {
           currentState.reduceTrace(8);
+        } else {
+          currentState.reduceTrace(3);
         }
 
         const newAct = getAct(newX, newY);
@@ -509,9 +580,19 @@ export default function GameScreen() {
           currentState.storyProgress.hasAdminKeycard,
         );
         if (!gate.blocked) {
+          const fbTileKey = `${fallback.newLocation.x},${fallback.newLocation.y}`;
+          const fbIsNewTile = !currentState.visitedTiles.has(fbTileKey);
+
           currentState.setLocation(fallback.newLocation);
-          currentState.visitTile(`${fallback.newLocation.x},${fallback.newLocation.y}`);
+          currentState.visitTile(fbTileKey);
           triggerSceneReveal(fallback.newLocation.x, fallback.newLocation.y, fallback.newLocation.name);
+
+          if (fbIsNewTile) {
+            currentState.reduceTrace(8);
+          } else {
+            currentState.reduceTrace(3);
+          }
+
           const newAct = getAct(fallback.newLocation.x, fallback.newLocation.y);
           if (newAct !== currentState.storyProgress.currentAct) {
             currentState.updateStoryProgress({ currentAct: newAct });

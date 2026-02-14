@@ -371,13 +371,13 @@ export function processCommand(
 
     case 'rest': {
       const pool = act === 1 ? REST_ACT1 : act === 2 ? REST_ACT2 : REST_ACT3;
-      const hpGain = act === 1 ? Math.floor(Math.random() * 8) + 10 : act === 2 ? Math.floor(Math.random() * 5) + 3 : Math.floor(Math.random() * 3) + 1;
+      const hpGain = act === 1 ? Math.floor(Math.random() * 5) + 4 : act === 2 ? Math.floor(Math.random() * 5) + 3 : Math.floor(Math.random() * 3) + 1;
       const manaGain = act === 1 ? Math.floor(Math.random() * 8) + 5 : act === 2 ? Math.floor(Math.random() * 5) + 2 : Math.floor(Math.random() * 3) + 1;
 
       let narrative = pick(pool);
       let finalHpGain = hpGain;
 
-      if (act >= 2 && Math.random() < 0.3) {
+      if (act >= 2 && Math.random() < 0.5) {
         const interruptPool = act === 2 ? AMBUSH_NARRATIVES_ACT2 : AMBUSH_NARRATIVES_ACT3;
         narrative += '\n\n' + pick(interruptPool);
         finalHpGain = -(Math.floor(Math.random() * 5) + 3);

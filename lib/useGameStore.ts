@@ -28,6 +28,14 @@ export interface StoryEvent {
   timestamp: number;
 }
 
+export interface EnemyState {
+  name: string;
+  hp: number;
+  maxHp: number;
+  damage: number;
+  act: number;
+}
+
 export interface StoryProgress {
   currentAct: number;
   hasFirewallKey: boolean;
@@ -41,6 +49,7 @@ export interface StoryProgress {
   keyEvents: StoryEvent[];
   discoveredLore: string[];
   traceLevel: number;
+  itemsUsed: number;
 }
 
 type GameStatus = 'playing' | 'dead' | 'victory';
@@ -56,6 +65,9 @@ interface GameState {
   gameStatus: GameStatus;
   visitedTiles: Set<string>;
   storyProgress: StoryProgress;
+  activeEnemy: EnemyState | null;
+  lastRestTile: string | null;
+  hasExploitReady: boolean;
 
   setThinking: (val: boolean) => void;
   setMood: (mood: Mood) => void;
@@ -72,6 +84,11 @@ interface GameState {
   discoverLore: (loreId: string) => void;
   addTrace: (amount: number) => void;
   reduceTrace: (amount: number) => void;
+  setActiveEnemy: (enemy: EnemyState | null) => void;
+  damageEnemy: (amount: number) => void;
+  setLastRestTile: (tile: string | null) => void;
+  setExploitReady: (val: boolean) => void;
+  useItem: (id: string) => { effect: string; narrative: string } | null;
   resetGame: () => void;
 }
 
@@ -102,6 +119,7 @@ const INITIAL_STORY_PROGRESS: StoryProgress = {
   keyEvents: [],
   discoveredLore: [],
   traceLevel: 0,
+  itemsUsed: 0,
 };
 
 const INITIAL_STATE = {
@@ -115,6 +133,9 @@ const INITIAL_STATE = {
   gameStatus: 'playing' as GameStatus,
   visitedTiles: new Set(['4,4']),
   storyProgress: INITIAL_STORY_PROGRESS,
+  activeEnemy: null as EnemyState | null,
+  lastRestTile: null as string | null,
+  hasExploitReady: false,
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -227,10 +248,109 @@ export const useGameStore = create<GameState>((set, get) => ({
       },
     })),
 
+  setActiveEnemy: (enemy) => set({ activeEnemy: enemy }),
+
+  damageEnemy: (amount) =>
+    set((state) => {
+      if (!state.activeEnemy) return state;
+      const newHp = state.activeEnemy.hp - amount;
+      if (newHp <= 0) {
+        return { activeEnemy: null };
+      }
+      return { activeEnemy: { ...state.activeEnemy, hp: newHp } };
+    }),
+
+  setLastRestTile: (tile) => set({ lastRestTile: tile }),
+
+  setExploitReady: (val) => set({ hasExploitReady: val }),
+
+  useItem: (id) => {
+    const state = get();
+    const item = state.inventory.find((i) => i.id === id);
+    if (!item) return null;
+
+    const icon = item.icon.toLowerCase();
+
+    if (icon === 'token') return null;
+
+    let effect = '';
+    let narrative = '';
+
+    switch (icon) {
+      case 'patch':
+        set((s) => ({
+          hp: Math.min(100, s.hp + 15),
+          inventory: s.inventory.filter((i) => i.id !== id),
+          storyProgress: { ...s.storyProgress, itemsUsed: s.storyProgress.itemsUsed + 1 },
+        }));
+        effect = 'heal';
+        narrative = `Applied ${item.name}. Systems patched — stability restored by 15%.`;
+        break;
+      case 'memory':
+        set((s) => ({
+          mana: Math.min(100, s.mana + 20),
+          inventory: s.inventory.filter((i) => i.id !== id),
+          storyProgress: { ...s.storyProgress, itemsUsed: s.storyProgress.itemsUsed + 1 },
+        }));
+        effect = 'energy';
+        narrative = `Used ${item.name}. Energy cells recharged — +20% energy restored.`;
+        break;
+      case 'debug':
+        set((s) => ({
+          inventory: s.inventory.filter((i) => i.id !== id),
+          storyProgress: {
+            ...s.storyProgress,
+            traceLevel: Math.max(0, s.storyProgress.traceLevel - 20),
+            itemsUsed: s.storyProgress.itemsUsed + 1,
+          },
+        }));
+        effect = 'trace';
+        narrative = `Ran ${item.name}. Trace signatures scrubbed — trace reduced by 20.`;
+        break;
+      case 'exploit':
+        set((s) => ({
+          hasExploitReady: true,
+          inventory: s.inventory.filter((i) => i.id !== id),
+          storyProgress: { ...s.storyProgress, itemsUsed: s.storyProgress.itemsUsed + 1 },
+        }));
+        effect = 'exploit';
+        narrative = `Loaded ${item.name}. Next hack will auto-succeed.`;
+        break;
+      case 'proxy':
+        set((s) => ({
+          inventory: s.inventory.filter((i) => i.id !== id),
+          storyProgress: {
+            ...s.storyProgress,
+            traceLevel: Math.max(0, s.storyProgress.traceLevel - 35),
+            itemsUsed: s.storyProgress.itemsUsed + 1,
+          },
+        }));
+        effect = 'stealth';
+        narrative = `Activated ${item.name}. Proxy mask engaged — trace reduced by 35.`;
+        break;
+      case 'firewall':
+        set((s) => ({
+          hp: Math.min(100, s.hp + 10),
+          inventory: s.inventory.filter((i) => i.id !== id),
+          storyProgress: { ...s.storyProgress, itemsUsed: s.storyProgress.itemsUsed + 1 },
+        }));
+        effect = 'shield';
+        narrative = `Deployed ${item.name}. Shield active — stability restored by 10%.`;
+        break;
+      default:
+        return null;
+    }
+
+    return { effect, narrative };
+  },
+
   resetGame: () => set({
     ...INITIAL_STATE,
     visitedTiles: new Set(['4,4']),
     storyProgress: { ...INITIAL_STORY_PROGRESS, keyEvents: [] },
+    activeEnemy: null,
+    lastRestTile: null,
+    hasExploitReady: false,
   }),
 }));
 

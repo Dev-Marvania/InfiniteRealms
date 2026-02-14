@@ -135,6 +135,13 @@ export async function generateGameResponse(state: GameState): Promise<AIGameResp
 - Hacks completed: ${progress.hacksCompleted}
 - Tiles explored: ${progress.tilesExplored}`;
 
+    if (progress.hasFirewallKey) {
+      progressContext += `\n- IMPORTANT: Player already HAS the Firewall Key. Do NOT give them another one.`;
+    }
+    if (progress.hasAdminKeycard) {
+      progressContext += `\n- IMPORTANT: Player already HAS the Admin Keycard. Do NOT give them another one.`;
+    }
+
     if (progress.keyEvents.length > 0) {
       progressContext += `\n\nRECENT STORY EVENTS (reference these for continuity):
 ${progress.keyEvents.map((e) => `- ${e}`).join("\n")}`;
