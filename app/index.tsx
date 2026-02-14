@@ -365,11 +365,21 @@ export default function GameScreen() {
       if (dir) {
         let newX = store.location.x + dir.dx;
         let newY = store.location.y + dir.dy;
-        newX = Math.max(-1, Math.min(5, newX));
-        newY = Math.max(-1, Math.min(5, newY));
+        const clampedX = Math.max(-1, Math.min(5, newX));
+        const clampedY = Math.max(-1, Math.min(5, newY));
+
+        if (clampedX === store.location.x && clampedY === store.location.y) {
+          store.addMessage({ role: 'user', content: text });
+          store.addMessage({
+            role: 'god',
+            content: 'You walk into a wall of static. The simulation ends here — nothing beyond this boundary but raw void.\n\n// THE ARCHITECT: "That\'s the edge of my world. Turn around. There\'s nothing out there for you."',
+            mood: 'neutral',
+          });
+          return;
+        }
 
         const gate = checkActGate(
-          newX, newY,
+          clampedX, clampedY,
           store.location.x, store.location.y,
           store.storyProgress.hasFirewallKey,
           store.storyProgress.hasAdminKeycard,
@@ -484,6 +494,12 @@ export default function GameScreen() {
           const playerDmg = Math.floor(Math.random() * 8) + 8 + act * 3;
           currentState.damageEnemy(playerDmg);
           const afterAttack = useGameStore.getState();
+
+          const counterDmg = Math.floor(Math.random() * enemyState.damage) + Math.ceil(enemyState.damage * 0.3);
+          currentState.setHp(currentState.hp - counterDmg);
+
+          currentState.setMana(Math.max(0, currentState.mana - 5));
+
           if (!afterAttack.activeEnemy) {
             currentState.updateStoryProgress({
               enemiesDefeated: currentState.storyProgress.enemiesDefeated + 1,
@@ -494,13 +510,13 @@ export default function GameScreen() {
             );
             currentState.addMessage({
               role: 'god',
-              content: `HOSTILE TERMINATED: ${enemyState.name} has been deleted.\n\n// THE ARCHITECT: "Fine. But there are more where that came from."`,
+              content: `HOSTILE TERMINATED: ${enemyState.name} deleted. It hit you for ${counterDmg} damage on the way out.\n\n// THE ARCHITECT: "Fine. But there are more where that came from."`,
               mood: 'mystic',
             });
           } else {
             currentState.addMessage({
               role: 'god',
-              content: `You deal ${playerDmg} damage to ${enemyState.name}. It has ${afterAttack.activeEnemy.hp}/${enemyState.maxHp} integrity remaining.\n\n// THE ARCHITECT: "It's still standing. Keep swinging — or run."`,
+              content: `You deal ${playerDmg} damage to ${enemyState.name} [${afterAttack.activeEnemy.hp}/${enemyState.maxHp} HP]. It strikes back for ${counterDmg} damage.\n\n// THE ARCHITECT: "It's still standing. Keep swinging — or run."`,
               mood: 'danger',
             });
           }
@@ -530,6 +546,7 @@ export default function GameScreen() {
 
       if (response.intent === 'magic') {
         currentState.reduceTrace(10);
+        currentState.setMana(Math.max(0, currentState.mana - 15));
 
         const magicTileKey = `${currentState.location.x},${currentState.location.y}`;
         const loreEntry = getLoreForTile(magicTileKey);
@@ -543,16 +560,23 @@ export default function GameScreen() {
         }
 
         if (currentState.activeEnemy) {
+          const enemyBefore = currentState.activeEnemy;
           currentState.damageEnemy(25);
           const enemy = useGameStore.getState().activeEnemy;
           if (!enemy) {
             currentState.addMessage({
               role: 'god',
-              content: 'Your energy blast overloads the enemy\'s circuits. It disintegrates.\n\n// THE ARCHITECT: "Brute force. How elegant."',
+              content: `Your energy blast overloads ${enemyBefore.name}\'s circuits. It disintegrates.\n\n// THE ARCHITECT: "Brute force. How elegant."`,
               mood: 'mystic',
             });
             currentState.updateStoryProgress({
               enemiesDefeated: currentState.storyProgress.enemiesDefeated + 1,
+            });
+          } else {
+            currentState.addMessage({
+              role: 'god',
+              content: `Your energy blast hits ${enemyBefore.name} for 25 damage [${enemy.hp}/${enemyBefore.maxHp} HP].\n\n// THE ARCHITECT: "Is that all? My programs are built tougher than that."`,
+              mood: 'danger',
             });
           }
         }
