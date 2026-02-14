@@ -31,7 +31,7 @@ function TypewriterText({ text, isLatest }: { text: string; isLatest: boolean })
       if (indexRef.current >= text.length) {
         clearInterval(interval);
       }
-    }, 18);
+    }, 35);
 
     return () => clearInterval(interval);
   }, [text, isLatest]);

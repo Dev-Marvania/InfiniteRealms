@@ -6,6 +6,7 @@ import {
   Text,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -115,7 +116,7 @@ export default function GameScreen() {
     playSfx('scene_enter').catch(() => {});
   }, []);
 
-  const handleRestart = useCallback(() => {
+  const doRestart = useCallback(() => {
     Speech.stop();
     stopAmbient().catch(() => {});
     useGameStore.getState().resetGame();
@@ -123,6 +124,17 @@ export default function GameScreen() {
     revealedTilesRef.current = new Set(['4,4']);
     setSceneReveal(null);
   }, []);
+
+  const handleRestart = useCallback(() => {
+    Alert.alert(
+      'SYSTEM RESET',
+      'All progress will be lost. Are you sure you want to restart?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Reset', style: 'destructive', onPress: doRestart },
+      ],
+    );
+  }, [doRestart]);
 
   const handleCommand = useCallback(async (text: string) => {
     const store = useGameStore.getState();
