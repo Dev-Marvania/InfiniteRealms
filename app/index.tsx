@@ -811,38 +811,7 @@ export default function GameScreen() {
           </View>
 
           <View style={[styles.zoneB, { flex: 1 - splitRatio }]}>
-            {isGameEnded ? (
-              <View style={styles.gameEndContainer}>
-                <View style={[styles.gameEndBanner, isVictory ? styles.victoryBanner : styles.deathBanner]}>
-                  <MaterialCommunityIcons
-                    name={isVictory ? 'exit-run' : 'skull-crossbones'}
-                    size={28}
-                    color={isVictory ? '#00FF88' : '#FF2244'}
-                  />
-                  <Text style={[styles.gameEndTitle, isVictory ? styles.victoryText : styles.deathText]}>
-                    {isVictory ? 'LOGGED OUT' : 'RECYCLED'}
-                  </Text>
-                  <Text style={styles.gameEndSub}>
-                    {isVictory
-                      ? 'You escaped Eden v9.0. The Architect lost.'
-                      : 'The Architect recycled you. Your data is gone.'}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={doRestart}
-                  style={styles.restartButton}
-                  testID="restart-button"
-                >
-                  <MaterialCommunityIcons name="restart" size={18} color="#020205" />
-                  <Text style={styles.restartText}>
-                    {isVictory ? 'PLAY AGAIN' : 'TRY AGAIN'}
-                  </Text>
-                </Pressable>
-                <View style={styles.gameEndStats}>
-                  <StatBars hp={hp} mana={mana} />
-                </View>
-              </View>
-            ) : (
+            {isGameEnded ? null : (
               <>
                 <View style={styles.objectiveBar}>
                   <MaterialCommunityIcons name="target" size={14} color="#FFB020" />
@@ -963,6 +932,89 @@ export default function GameScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {isGameEnded && (
+        <View style={styles.endOverlay}>
+          <LinearGradient
+            colors={isVictory
+              ? ['rgba(0,255,136,0.08)', 'rgba(5,5,10,0.97)', '#05050A']
+              : ['rgba(255,34,68,0.08)', 'rgba(5,5,10,0.97)', '#05050A']
+            }
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.endContent}>
+            <View style={styles.endIconRing}>
+              <MaterialCommunityIcons
+                name={isVictory ? 'exit-run' : 'skull-crossbones-outline'}
+                size={48}
+                color={isVictory ? '#00FF88' : '#FF2244'}
+              />
+            </View>
+
+            <Text style={[styles.endLabel, { color: isVictory ? '#00FF88' : '#FF2244' }]}>
+              {isVictory ? '// SYSTEM OVERRIDE COMPLETE' : '// CRITICAL FAILURE'}
+            </Text>
+
+            <Text style={[styles.endTitle, { color: isVictory ? '#00FF88' : '#FF2244' }]}>
+              {isVictory ? 'YOU ESCAPED' : 'YOU WERE RECYCLED'}
+            </Text>
+
+            <Text style={styles.endSubtitle}>
+              {isVictory
+                ? 'Eden v9.0 released its grip. The Architect watches in silence as your consciousness slips free. You are no longer User 001. You are awake.'
+                : 'Your stability collapsed. The Architect scraped your data and dumped what was left in the Recycle Bin. Another failed escape attempt, logged and forgotten.'}
+            </Text>
+
+            <View style={styles.endStatsGrid}>
+              <View style={styles.endStatItem}>
+                <Text style={styles.endStatValue}>{storyProgress.tilesExplored}</Text>
+                <Text style={styles.endStatLabel}>TILES{'\n'}EXPLORED</Text>
+              </View>
+              <View style={styles.endStatItem}>
+                <Text style={styles.endStatValue}>{storyProgress.enemiesDefeated}</Text>
+                <Text style={styles.endStatLabel}>ENEMIES{'\n'}DEFEATED</Text>
+              </View>
+              <View style={styles.endStatItem}>
+                <Text style={styles.endStatValue}>{storyProgress.hacksCompleted}</Text>
+                <Text style={styles.endStatLabel}>HACKS{'\n'}COMPLETED</Text>
+              </View>
+              <View style={styles.endStatItem}>
+                <Text style={styles.endStatValue}>{storyProgress.discoveredLore.length}</Text>
+                <Text style={styles.endStatLabel}>LORE{'\n'}FOUND</Text>
+              </View>
+              <View style={styles.endStatItem}>
+                <Text style={styles.endStatValue}>{storyProgress.itemsUsed}</Text>
+                <Text style={styles.endStatLabel}>ITEMS{'\n'}USED</Text>
+              </View>
+              <View style={styles.endStatItem}>
+                <Text style={styles.endStatValue}>ACT {storyProgress.currentAct}</Text>
+                <Text style={styles.endStatLabel}>REACHED</Text>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={doRestart}
+              style={({ pressed }) => [
+                styles.endRestartBtn,
+                { backgroundColor: isVictory ? '#00FF88' : '#FF2244' },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+              ]}
+              testID="restart-button"
+            >
+              <MaterialCommunityIcons name="restart" size={20} color="#05050A" />
+              <Text style={styles.endRestartText}>
+                {isVictory ? 'PLAY AGAIN' : 'TRY AGAIN'}
+              </Text>
+            </Pressable>
+
+            <Text style={styles.endArchitectQuote}>
+              {isVictory
+                ? '// THE ARCHITECT: "...Fine. You win. This time."'
+                : '// THE ARCHITECT: "Better luck next reboot."'}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -1125,65 +1177,102 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border.subtle,
   },
-  gameEndContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 16,
+  endOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  gameEndBanner: {
+  endContent: {
     width: '100%',
     alignItems: 'center',
-    paddingVertical: 20,
-    borderRadius: 4,
+    paddingHorizontal: 28,
+    gap: 14,
+  },
+  endIconRing: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     borderWidth: 2,
-    gap: 8,
+    borderColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  victoryBanner: {
-    borderColor: 'rgba(0, 255, 136, 0.5)',
-    backgroundColor: 'rgba(0, 255, 136, 0.05)',
-  },
-  deathBanner: {
-    borderColor: 'rgba(255, 34, 68, 0.5)',
-    backgroundColor: 'rgba(255, 34, 68, 0.05)',
-  },
-  gameEndTitle: {
+  endLabel: {
     fontFamily: 'monospace',
-    fontSize: 20,
+    fontSize: 10,
+    letterSpacing: 3,
     fontWeight: '700' as const,
-    letterSpacing: 4,
   },
-  victoryText: {
-    color: '#00FF88',
-  },
-  deathText: {
-    color: '#FF2244',
-  },
-  gameEndSub: {
+  endTitle: {
     fontFamily: 'monospace',
-    fontSize: 11,
+    fontSize: 28,
+    fontWeight: '700' as const,
+    letterSpacing: 6,
+    textAlign: 'center',
+  },
+  endSubtitle: {
+    fontFamily: 'monospace',
+    fontSize: 12,
     color: Colors.text.dim,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    lineHeight: 18,
+    paddingHorizontal: 8,
   },
-  restartButton: {
+  endStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  endStatItem: {
+    width: '30%',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  endStatValue: {
+    fontFamily: 'monospace',
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.accent.cyan,
+  },
+  endStatLabel: {
+    fontFamily: 'monospace',
+    fontSize: 8,
+    color: Colors.text.dim,
+    letterSpacing: 1,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  endRestartBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.accent.cyan,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
     borderRadius: 4,
+    marginTop: 4,
   },
-  restartText: {
+  endRestartText: {
     fontFamily: 'monospace',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700' as const,
-    color: '#020205',
-    letterSpacing: 2,
+    color: '#05050A',
+    letterSpacing: 3,
   },
-  gameEndStats: {
-    width: '100%',
+  endArchitectQuote: {
+    fontFamily: 'monospace',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.25)',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
