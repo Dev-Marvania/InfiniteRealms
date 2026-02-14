@@ -39,6 +39,8 @@ export interface StoryProgress {
   hacksFailed: number;
   tilesExplored: number;
   keyEvents: StoryEvent[];
+  discoveredLore: string[];
+  traceLevel: number;
 }
 
 type GameStatus = 'playing' | 'dead' | 'victory';
@@ -67,6 +69,9 @@ interface GameState {
   visitTile: (key: string) => void;
   addStoryEvent: (description: string, act: number) => void;
   updateStoryProgress: (updates: Partial<StoryProgress>) => void;
+  discoverLore: (loreId: string) => void;
+  addTrace: (amount: number) => void;
+  reduceTrace: (amount: number) => void;
   resetGame: () => void;
 }
 
@@ -95,6 +100,8 @@ const INITIAL_STORY_PROGRESS: StoryProgress = {
   hacksFailed: 0,
   tilesExplored: 1,
   keyEvents: [],
+  discoveredLore: [],
+  traceLevel: 0,
 };
 
 const INITIAL_STATE = {
@@ -191,6 +198,33 @@ export const useGameStore = create<GameState>((set, get) => ({
   updateStoryProgress: (updates) =>
     set((state) => ({
       storyProgress: { ...state.storyProgress, ...updates },
+    })),
+
+  discoverLore: (loreId) =>
+    set((state) => {
+      if (state.storyProgress.discoveredLore.includes(loreId)) return state;
+      return {
+        storyProgress: {
+          ...state.storyProgress,
+          discoveredLore: [...state.storyProgress.discoveredLore, loreId],
+        },
+      };
+    }),
+
+  addTrace: (amount) =>
+    set((state) => ({
+      storyProgress: {
+        ...state.storyProgress,
+        traceLevel: Math.min(100, state.storyProgress.traceLevel + amount),
+      },
+    })),
+
+  reduceTrace: (amount) =>
+    set((state) => ({
+      storyProgress: {
+        ...state.storyProgress,
+        traceLevel: Math.max(0, state.storyProgress.traceLevel - amount),
+      },
     })),
 
   resetGame: () => set({

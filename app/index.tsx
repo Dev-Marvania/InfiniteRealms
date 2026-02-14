@@ -29,7 +29,12 @@ import CommandDeck from '@/components/CommandDeck';
 import WorldMap from '@/components/WorldMap';
 import VisualInventory from '@/components/VisualInventory';
 import StatBars from '@/components/StatBars';
+import TraceMeter from '@/components/TraceMeter';
 import SceneReveal, { getNodeType } from '@/components/SceneReveal';
+import HackingMinigame from '@/components/HackingMinigame';
+import GlitchOverlay from '@/components/GlitchOverlay';
+import LoreViewer from '@/components/LoreViewer';
+import { getLoreForTile } from '@/lib/loreData';
 
 type BottomTab = 'command' | 'world';
 
@@ -106,6 +111,10 @@ export default function GameScreen() {
   const containerHeightRef = useRef(0);
   const splitRatioRef = useRef(DEFAULT_RATIO);
 
+  const [hackMinigameVisible, setHackMinigameVisible] = useState(false);
+  const [loreViewerVisible, setLoreViewerVisible] = useState(false);
+  const pendingHackCommandRef = useRef<string | null>(null);
+
   const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
     containerHeightRef.current = e.nativeEvent.layout.height;
   }, []);
@@ -156,6 +165,8 @@ export default function GameScreen() {
     setActiveTab('command');
     revealedTilesRef.current = new Set(['4,4']);
     setSceneReveal(null);
+    setHackMinigameVisible(false);
+    setLoreViewerVisible(false);
   }, []);
 
   const handleRestart = useCallback(() => {
@@ -169,9 +180,107 @@ export default function GameScreen() {
     );
   }, [doRestart]);
 
+  const handleHackComplete = useCallback((success: boolean) => {
+    setHackMinigameVisible(false);
+    const store = useGameStore.getState();
+    const act = getAct(store.location.x, store.location.y);
+
+    if (success) {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {}
+      store.updateStoryProgress({
+        hacksCompleted: store.storyProgress.hacksCompleted + 1,
+      });
+      store.addStoryEvent('Successful hack via breach protocol', store.storyProgress.currentAct);
+      store.reduceTrace(15);
+
+      const manaChange = -(Math.floor(Math.random() * 10) + 10);
+      store.setMana(store.mana + manaChange);
+
+      let narrative = 'BREACH SUCCESSFUL. The firewall crumbles. Data flows freely.\n\n// THE ARCHITECT: "You cracked it. Fine. But I\'m rewriting the next one in real-time. Good luck."';
+      let newItem = undefined as any;
+
+      if (act === 1 && !store.storyProgress.hasFirewallKey && Math.random() < 0.4) {
+        newItem = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: 'Firewall Key',
+          icon: 'token',
+          description: 'Unlocks the Firewall Gate to Neon City.',
+        };
+      } else if (act === 2 && !store.storyProgress.hasAdminKeycard && Math.random() < 0.3) {
+        newItem = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: 'Admin Keycard',
+          icon: 'token',
+          description: 'Admin-level access to The Source.',
+        };
+      }
+
+      if (newItem) {
+        store.addItem(newItem);
+        narrative += `\n\nYou found: ${newItem.name}`;
+        setTimeout(() => playSfx('item').catch(() => {}), 300);
+      }
+
+      store.addMessage({ role: 'god', content: narrative, mood: 'mystic' });
+      store.setMood('mystic');
+    } else {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      } catch {}
+      store.updateStoryProgress({
+        hacksFailed: store.storyProgress.hacksFailed + 1,
+      });
+      store.addTrace(20);
+
+      const failDmg = act === 1 ? -8 : act === 2 ? -12 : -15;
+      store.setHp(store.hp + failDmg);
+      store.setMana(store.mana - 5);
+
+      store.addMessage({
+        role: 'god',
+        content: 'BREACH FAILED. The firewall held. Counter-hack detected — your systems take damage.\n\n// THE ARCHITECT: "Timed out, did you? My security is faster than your fingers. And now I know exactly where you are."',
+        mood: 'danger',
+      });
+      store.setMood('danger');
+
+      if (store.hp + failDmg <= 0) {
+        store.addMessage({
+          role: 'god',
+          content: 'SYSTEM NOTICE: User 001 stability has reached 0%. Initiating recycling protocol.\n\n// THE ARCHITECT: "And that\'s that. Back to the Recycle Bin with you."',
+          mood: 'danger',
+        });
+        store.setGameStatus('dead');
+      }
+    }
+
+    store.setThinking(false);
+    playSfx(success ? 'hack' : 'hack').catch(() => {});
+  }, []);
+
   const handleCommand = useCallback(async (text: string) => {
     const store = useGameStore.getState();
     if (store.gameStatus !== 'playing') return;
+
+    const lower = text.toLowerCase().trim();
+    const isHackCommand = /\b(hack|rewrite|code|sudo|exploit|inject|override|crack|decrypt|bypass)\b/.test(lower);
+
+    if (isHackCommand) {
+      store.addMessage({ role: 'user', content: text });
+      store.setThinking(true);
+      store.addMessage({
+        role: 'god',
+        content: 'INITIATING BREACH PROTOCOL...\n\n// THE ARCHITECT: "Oh, you want to hack? Fine. Let\'s see how fast those fingers really are."',
+        mood: 'mystic',
+      });
+      pendingHackCommandRef.current = text;
+      setTimeout(() => {
+        setHackMinigameVisible(true);
+        store.setThinking(false);
+      }, 1200);
+      return;
+    }
 
     if (isMovementCommand(text)) {
       const dir = parseDirection(text);
@@ -287,19 +396,26 @@ export default function GameScreen() {
           `Defeated an enemy at ${currentState.location.name}`,
           currentState.storyProgress.currentAct,
         );
+        currentState.addTrace(8);
       }
 
-      if (response.intent === 'hack') {
-        if (response.hpChange >= 0) {
-          currentState.updateStoryProgress({
-            hacksCompleted: currentState.storyProgress.hacksCompleted + 1,
+      if (response.intent === 'search') {
+        const tileKey = `${currentState.location.x},${currentState.location.y}`;
+        const loreEntry = getLoreForTile(tileKey);
+        if (loreEntry && !currentState.storyProgress.discoveredLore.includes(loreEntry.id)) {
+          currentState.discoverLore(loreEntry.id);
+          currentState.addMessage({
+            role: 'god',
+            content: `DATA LOG RECOVERED: "${loreEntry.title}"\n\nA hidden data fragment has been decrypted and added to your logs.\n\n// THE ARCHITECT: "You weren't supposed to find that. Some files are deleted for a reason."`,
+            mood: 'mystic',
           });
-          currentState.addStoryEvent('Successful hack', currentState.storyProgress.currentAct);
-        } else {
-          currentState.updateStoryProgress({
-            hacksFailed: currentState.storyProgress.hacksFailed + 1,
-          });
+          currentState.addStoryEvent(`Discovered lore: ${loreEntry.title}`, loreEntry.act);
         }
+        currentState.addTrace(5);
+      }
+
+      if (response.intent === 'rest') {
+        currentState.addTrace(10);
       }
 
       if (response.intent === 'move') {
@@ -312,6 +428,11 @@ export default function GameScreen() {
         currentState.setLocation({ x: newX, y: newY, name: locName });
         currentState.visitTile(`${newX},${newY}`);
         triggerSceneReveal(newX, newY, locName);
+
+        const tileKey = `${newX},${newY}`;
+        if (!currentState.visitedTiles.has(tileKey)) {
+          currentState.reduceTrace(8);
+        }
 
         const newAct = getAct(newX, newY);
         const oldAct = currentState.storyProgress.currentAct;
@@ -336,6 +457,20 @@ export default function GameScreen() {
       currentState.setThinking(false);
 
       const finalState = useGameStore.getState();
+
+      if (finalState.storyProgress.traceLevel >= 100 && finalState.gameStatus === 'playing') {
+        const act = getAct(finalState.location.x, finalState.location.y);
+        const traceDmg = act === 1 ? -15 : act === 2 ? -20 : -25;
+        finalState.setHp(finalState.hp + traceDmg);
+        finalState.addMessage({
+          role: 'god',
+          content: 'ALERT: TRACE COMPLETE. Hunter Protocol activated.\n\nA squad of Hunters materializes around you. They hit hard and fast. The Architect found you.\n\n// THE ARCHITECT: "I told you I was watching. You left too many footprints. Now hold still — this will hurt."',
+          mood: 'danger',
+        });
+        finalState.updateStoryProgress({ traceLevel: 30 });
+        finalState.addStoryEvent('Hunter Protocol triggered by TRACE detection', finalState.storyProgress.currentAct);
+      }
+
       if (finalState.hp <= 0 && finalState.gameStatus === 'playing') {
         finalState.addMessage({
           role: 'god',
@@ -435,6 +570,20 @@ export default function GameScreen() {
       <LinearGradient
         colors={['#05050A', '#080812', '#0A0A14']}
         style={StyleSheet.absoluteFill}
+      />
+
+      <GlitchOverlay hp={hp} />
+
+      <HackingMinigame
+        visible={hackMinigameVisible}
+        act={storyProgress.currentAct}
+        onComplete={handleHackComplete}
+      />
+
+      <LoreViewer
+        discoveredLore={storyProgress.discoveredLore}
+        visible={loreViewerVisible}
+        onClose={() => setLoreViewerVisible(false)}
       />
 
       {sceneReveal && (
@@ -576,6 +725,22 @@ export default function GameScreen() {
                   </Pressable>
 
                   <Pressable
+                    onPress={() => setLoreViewerVisible(true)}
+                    style={styles.loreTab}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    testID="lore-button"
+                  >
+                    <MaterialCommunityIcons
+                      name="book-open-variant"
+                      size={14}
+                      color={storyProgress.discoveredLore.length > 0 ? Colors.accent.neon : Colors.text.dim}
+                    />
+                    {storyProgress.discoveredLore.length > 0 && (
+                      <Text style={styles.loreBadge}>{storyProgress.discoveredLore.length}</Text>
+                    )}
+                  </Pressable>
+
+                  <Pressable
                     onPress={handleRestart}
                     style={styles.resetTab}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -592,6 +757,7 @@ export default function GameScreen() {
                 {activeTab === 'command' ? (
                   <View style={styles.commandContent}>
                     <StatBars hp={hp} mana={mana} />
+                    <TraceMeter traceLevel={storyProgress.traceLevel} />
                     <CommandDeck onSend={handleCommand} disabled={isThinking || isGameEnded} />
                   </View>
                 ) : (
@@ -601,6 +767,7 @@ export default function GameScreen() {
                     showsVerticalScrollIndicator={false}
                   >
                     <StatBars hp={hp} mana={mana} />
+                    <TraceMeter traceLevel={storyProgress.traceLevel} />
                     <View style={styles.worldSection}>
                       <WorldMap location={location} visitedTiles={visitedTiles} />
                     </View>
@@ -722,6 +889,25 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: Colors.accent.cyan,
+  },
+  loreTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 136, 0.15)',
+    minWidth: 36,
+    minHeight: 36,
+  },
+  loreBadge: {
+    fontFamily: 'monospace',
+    fontSize: 9,
+    fontWeight: '700' as const,
+    color: '#00FF88',
   },
   resetTab: {
     alignItems: 'center',
