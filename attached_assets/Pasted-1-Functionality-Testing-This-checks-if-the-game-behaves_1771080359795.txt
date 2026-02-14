@@ -1,0 +1,38 @@
+1. Functionality Testing
+This checks if the game behaves as designed. 
+Game Mechanics: Do character movements, combat, and inventory systems work correctly?
+Progression: Can the player progress from start to finish without getting stuck?
+User Interface (UI): Do menus, HUD, buttons, and HUD elements function and display correctly?
+Save/Load Systems: Does saving and loading work properly across different scenarios?
+Audio/Visual Sync: Do sounds and music align with in-game actions and environmental changes? 
+2. Performance Testing
+Focuses on speed, stability, and responsiveness. 
+Frame Rate (FPS): Maintaining a consistent frame rate, especially during high-action scenes.
+Load Times: Ensuring loading times are within acceptable limits.
+Memory Management: Detecting memory leaks that cause the game to crash or become unresponsive.
+Resource Usage: Monitoring CPU, GPU, and RAM usage.
+Battery/Thermal (Mobile): Checking for overheating and excessive battery consumption. 
+3. Compatibility Testing
+Ensures the game works across different hardware and software. 
+Hardware Configurations: Testing on different graphics cards, processors, and RAM capacities.
+OS Versions: Verifying functionality across various operating systems (iOS, Android, Windows, etc.).
+Input Devices: Testing keyboard/mouse, controllers, and touchscreens.
+Screen Resolution/Aspect Ratios: Ensuring the UI adapts correctly. 
+4. Play Testing & User Experience (UX)
+Evaluates how enjoyable and intuitive the game is. 
+Game Balance: Assessing difficulty, enemy strength, and resource availability to ensure fairness.
+Tutorial/Onboarding: Is the game easy to understand for new players?
+Fun Factor: Identifying if parts of the game are boring, repetitive, or frustrating.
+Accessibility: Ensuring the game is playable by people with disabilities. 
+5. Network & Multiplayer Testing
+Latency/Lag: Testing performance under high latency or poor network conditions.
+Server Stability: Can the servers handle the expected number of concurrent users?
+Matchmaking/Sync: Do multiplayer sessions, syncing, and matchmaking work correctly. 
+6. Compliance & Security Testing
+Platform Guidelines: Ensuring the game meets requirements for Sony, Microsoft, Nintendo, Apple, or Google.
+Data Security: Protecting user data and preventing hacking/cheating.
+Content Ratings: Verifying that age-appropriate content guidelines are met. 
+7. Localization Testing
+Translation Accuracy: Are the texts translated properly by native speakers?
+Context & Culturalization: Are the images, references, and language appropriate for the target region?
+UI Fit: Ensuring text isn't truncated or overlapping when translated. 
