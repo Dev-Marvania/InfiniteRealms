@@ -679,7 +679,10 @@ export default function GameScreen() {
       } catch {}
     } catch (error) {
       const currentState = useGameStore.getState();
-      const fallback = processCommand(text, currentState.location);
+      const fallback = processCommand(text, currentState.location, {
+        hasFirewallKey: currentState.storyProgress.hasFirewallKey,
+        hasAdminKeycard: currentState.storyProgress.hasAdminKeycard,
+      });
 
       const actionSound = getActionSound(fallback.intent);
       if (actionSound) playSfx(actionSound).catch(() => {});
@@ -691,10 +694,107 @@ export default function GameScreen() {
       });
       if (fallback.hpChange !== 0) currentState.setHp(currentState.hp + fallback.hpChange);
       if (fallback.manaChange !== 0) currentState.setMana(currentState.mana + fallback.manaChange);
+
+      if (fallback.intent === 'attack') {
+        const fbAct = getAct(currentState.location.x, currentState.location.y);
+        if (!currentState.activeEnemy) {
+          const enemy = spawnEnemy(fbAct);
+          currentState.setActiveEnemy(enemy);
+        }
+        const fbEnemy = useGameStore.getState().activeEnemy;
+        if (fbEnemy) {
+          const playerDmg = Math.floor(Math.random() * 8) + 8 + fbAct * 3;
+          currentState.damageEnemy(playerDmg);
+          const afterFbAttack = useGameStore.getState();
+
+          const counterDmg = Math.floor(Math.random() * fbEnemy.damage) + Math.ceil(fbEnemy.damage * 0.3);
+          currentState.setHp(useGameStore.getState().hp - counterDmg);
+          currentState.setMana(Math.max(0, useGameStore.getState().mana - 5));
+
+          if (!afterFbAttack.activeEnemy) {
+            currentState.updateStoryProgress({
+              enemiesDefeated: currentState.storyProgress.enemiesDefeated + 1,
+            });
+            currentState.addMessage({
+              role: 'god',
+              content: `HOSTILE TERMINATED: ${fbEnemy.name} deleted. It hit you for ${counterDmg} damage on the way out.`,
+              mood: 'mystic',
+            });
+          } else {
+            currentState.addMessage({
+              role: 'god',
+              content: `You deal ${playerDmg} damage to ${fbEnemy.name} [${afterFbAttack.activeEnemy.hp}/${fbEnemy.maxHp} HP]. It strikes back for ${counterDmg} damage.`,
+              mood: 'danger',
+            });
+          }
+        }
+        currentState.addTrace(8);
+      }
+
+      if (fallback.intent === 'search') {
+        const fbSearchKey = `${currentState.location.x},${currentState.location.y}`;
+        const fbLore = getLoreForTile(fbSearchKey);
+        if (fbLore && !currentState.storyProgress.discoveredLore.includes(fbLore.id)) {
+          currentState.discoverLore(fbLore.id);
+          currentState.addMessage({
+            role: 'god',
+            content: `SCAN COMPLETE: Data log "${fbLore.title}" decrypted from local memory.\n\n// THE ARCHITECT: "Stop reading my files."`,
+            mood: 'mystic',
+          });
+        }
+        currentState.addTrace(5);
+      }
+
+      if (fallback.intent === 'magic') {
+        currentState.reduceTrace(10);
+        currentState.setMana(Math.max(0, useGameStore.getState().mana - 15));
+
+        const fbMagicKey = `${currentState.location.x},${currentState.location.y}`;
+        const fbMagicLore = getLoreForTile(fbMagicKey);
+        if (fbMagicLore && !currentState.storyProgress.discoveredLore.includes(fbMagicLore.id)) {
+          currentState.discoverLore(fbMagicLore.id);
+          currentState.addMessage({
+            role: 'god',
+            content: `SCAN COMPLETE: Data log "${fbMagicLore.title}" decrypted.\n\n// THE ARCHITECT: "Stop reading my files."`,
+            mood: 'mystic',
+          });
+        }
+
+        if (currentState.activeEnemy) {
+          const fbMagicEnemy = currentState.activeEnemy;
+          currentState.damageEnemy(25);
+          const afterMagic = useGameStore.getState().activeEnemy;
+          if (!afterMagic) {
+            currentState.updateStoryProgress({
+              enemiesDefeated: currentState.storyProgress.enemiesDefeated + 1,
+            });
+            currentState.addMessage({
+              role: 'god',
+              content: `Your energy blast overloads ${fbMagicEnemy.name}\'s circuits. It disintegrates.`,
+              mood: 'mystic',
+            });
+          }
+        }
+      }
+
+      if (fallback.intent === 'rest') {
+        currentState.addTrace(10);
+        currentState.setLastRestTile(`${currentState.location.x},${currentState.location.y}`);
+      }
+
       if (fallback.newItem) {
+        if (fallback.newItem.name === 'Firewall Key') {
+          currentState.updateStoryProgress({ hasFirewallKey: true });
+          currentState.addStoryEvent('Found the Firewall Key', currentState.storyProgress.currentAct);
+        }
+        if (fallback.newItem.name === 'Admin Keycard') {
+          currentState.updateStoryProgress({ hasAdminKeycard: true });
+          currentState.addStoryEvent('Found the Admin Keycard', currentState.storyProgress.currentAct);
+        }
         currentState.addItem(fallback.newItem);
         setTimeout(() => playSfx('item').catch(() => {}), 300);
       }
+
       if (fallback.newLocation) {
         const gate = checkActGate(
           fallback.newLocation.x, fallback.newLocation.y,
@@ -708,10 +808,14 @@ export default function GameScreen() {
 
           currentState.setLocation(fallback.newLocation);
           currentState.visitTile(fbTileKey);
+          currentState.setActiveEnemy(null);
           triggerSceneReveal(fallback.newLocation.x, fallback.newLocation.y, fallback.newLocation.name);
 
           if (fbIsNewTile) {
             currentState.reduceTrace(8);
+            currentState.updateStoryProgress({
+              tilesExplored: currentState.storyProgress.tilesExplored + 1,
+            });
           } else {
             currentState.reduceTrace(3);
           }
@@ -737,6 +841,27 @@ export default function GameScreen() {
       currentState.setThinking(false);
 
       const finalState = useGameStore.getState();
+
+      if (finalState.storyProgress.traceLevel >= 100 && finalState.gameStatus === 'playing') {
+        const traceAct = getAct(finalState.location.x, finalState.location.y);
+        const traceDmg = traceAct === 1 ? -15 : traceAct === 2 ? -20 : -25;
+        finalState.setHp(finalState.hp + traceDmg);
+        const hunterEnemy: EnemyState = {
+          name: 'Hunter Protocol Elite',
+          hp: 50 + traceAct * 10,
+          maxHp: 50 + traceAct * 10,
+          damage: 8 + traceAct * 3,
+          act: traceAct,
+        };
+        finalState.setActiveEnemy(hunterEnemy);
+        finalState.addMessage({
+          role: 'god',
+          content: `ALERT: TRACE COMPLETE. Hunter Protocol activated.\n\nA ${hunterEnemy.name} materializes — ${hunterEnemy.hp} HP.\n\n// THE ARCHITECT: "I told you I was watching."`,
+          mood: 'danger',
+        });
+        finalState.updateStoryProgress({ traceLevel: 30 });
+      }
+
       if (finalState.hp <= 0 && finalState.gameStatus === 'playing') {
         finalState.addMessage({
           role: 'god',

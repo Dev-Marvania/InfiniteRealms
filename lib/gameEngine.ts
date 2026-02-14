@@ -252,6 +252,7 @@ function parseIntent(input: string): { intent: Intent; direction?: string } {
 export function processCommand(
   input: string,
   currentLocation: GameLocation,
+  opts?: { hasFirewallKey?: boolean; hasAdminKeycard?: boolean },
 ): GameResponse {
   const { intent, direction } = parseIntent(input);
   const act = getAct(currentLocation.x, currentLocation.y);
@@ -333,9 +334,9 @@ export function processCommand(
       const success = Math.random() < successRate;
       if (success) {
         let extraItem: InventoryItem | undefined;
-        if (act === 1 && Math.random() < 0.35) {
+        if (act === 1 && Math.random() < 0.35 && !opts?.hasFirewallKey) {
           extraItem = { ...FIREWALL_KEY, id: genId() };
-        } else if (act === 2 && Math.random() < 0.25) {
+        } else if (act === 2 && Math.random() < 0.25 && !opts?.hasAdminKeycard) {
           extraItem = { ...ADMIN_KEYCARD, id: genId() };
         }
         return {
@@ -401,9 +402,9 @@ export function processCommand(
         const itemPool = act === 1 ? ITEM_POOL_ACT1 : act === 2 ? ITEM_POOL_ACT2 : ITEM_POOL_ACT3;
 
         let template: Omit<InventoryItem, 'id'>;
-        if (act === 1 && Math.random() < 0.3) {
+        if (act === 1 && Math.random() < 0.3 && !opts?.hasFirewallKey) {
           template = FIREWALL_KEY;
-        } else if (act === 2 && Math.random() < 0.2) {
+        } else if (act === 2 && Math.random() < 0.2 && !opts?.hasAdminKeycard) {
           template = ADMIN_KEYCARD;
         } else {
           template = pick(itemPool);
