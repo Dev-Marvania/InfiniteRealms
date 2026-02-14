@@ -461,7 +461,7 @@ export default function GameScreen() {
                   </Text>
                 </View>
                 <Pressable
-                  onPress={handleRestart}
+                  onPress={doRestart}
                   style={styles.restartButton}
                   testID="restart-button"
                 >
@@ -539,11 +539,12 @@ export default function GameScreen() {
                   <Pressable
                     onPress={handleRestart}
                     style={styles.resetTab}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     testID="reset-button"
                   >
                     <MaterialCommunityIcons
                       name="restart"
-                      size={14}
+                      size={16}
                       color={Colors.accent.danger}
                     />
                   </Pressable>
@@ -678,11 +679,13 @@ const styles = StyleSheet.create({
   resetTab: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 34, 68, 0.2)',
+    borderColor: 'rgba(255, 34, 68, 0.25)',
+    minWidth: 40,
+    minHeight: 36,
   },
   commandContent: {
     flex: 1,
