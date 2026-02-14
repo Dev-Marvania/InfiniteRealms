@@ -34,6 +34,7 @@ import SceneReveal, { getNodeType } from '@/components/SceneReveal';
 import HackingMinigame from '@/components/HackingMinigame';
 import GlitchOverlay from '@/components/GlitchOverlay';
 import LoreViewer from '@/components/LoreViewer';
+import EnemyBar from '@/components/EnemyBar';
 import { getLoreForTile } from '@/lib/loreData';
 
 type BottomTab = 'command' | 'world';
@@ -92,6 +93,40 @@ function checkActGate(
   return { blocked: false, message: '' };
 }
 
+import { EnemyState } from '@/lib/useGameStore';
+
+const ENEMY_POOL: Record<number, { name: string; hp: number; damage: number }[]> = {
+  1: [
+    { name: 'Spam Bot', hp: 20, damage: 4 },
+    { name: 'Corrupted Fragment', hp: 15, damage: 3 },
+    { name: 'Glitch Error', hp: 12, damage: 5 },
+    { name: 'Dead Link Crawler', hp: 18, damage: 4 },
+  ],
+  2: [
+    { name: 'Hunter Protocol', hp: 40, damage: 8 },
+    { name: 'Security Crawler', hp: 35, damage: 7 },
+    { name: 'Firewall Drone', hp: 30, damage: 9 },
+    { name: 'NPC Enforcer', hp: 45, damage: 6 },
+  ],
+  3: [
+    { name: 'Elite Sentinel', hp: 60, damage: 12 },
+    { name: 'Source Guardian', hp: 55, damage: 10 },
+    { name: 'Kernel Watchdog', hp: 50, damage: 14 },
+  ],
+};
+
+function spawnEnemy(act: number): EnemyState {
+  const pool = ENEMY_POOL[act] || ENEMY_POOL[1];
+  const template = pool[Math.floor(Math.random() * pool.length)];
+  return {
+    name: template.name,
+    hp: template.hp,
+    maxHp: template.hp,
+    damage: template.damage,
+    act,
+  };
+}
+
 type SceneState = {
   nodeType: 'recycle' | 'firewall' | 'neon' | 'source' | 'terminal' | 'trap';
   locationName: string;
@@ -148,6 +183,7 @@ export default function GameScreen() {
   const gameStatus = useGameStore((s) => s.gameStatus);
   const visitedTiles = useGameStore((s) => s.visitedTiles);
   const storyProgress = useGameStore((s) => s.storyProgress);
+  const activeEnemy = useGameStore((s) => s.activeEnemy);
 
   const triggerSceneReveal = useCallback((x: number, y: number, locName: string) => {
     const key = `${x},${y}`;
@@ -297,6 +333,20 @@ export default function GameScreen() {
     if (isHackCommand) {
       store.addMessage({ role: 'user', content: text });
       store.setThinking(true);
+
+      if (store.hasExploitReady) {
+        store.setExploitReady(false);
+        store.addMessage({
+          role: 'god',
+          content: 'ZERO-DAY EXPLOIT DEPLOYED. Firewall bypassed instantly.\n\n// THE ARCHITECT: "WHAT?! Where did you get that exploit?! That\'s cheating!"',
+          mood: 'mystic',
+        });
+        setTimeout(() => {
+          handleHackComplete(true);
+        }, 800);
+        return;
+      }
+
       store.addMessage({
         role: 'god',
         content: 'INITIATING BREACH PROTOCOL...\n\n// THE ARCHITECT: "Oh, you want to hack? Fine. Let\'s see how fast those fingers really are."',
@@ -424,13 +474,37 @@ export default function GameScreen() {
       }
 
       if (response.intent === 'attack') {
-        currentState.updateStoryProgress({
-          enemiesDefeated: currentState.storyProgress.enemiesDefeated + 1,
-        });
-        currentState.addStoryEvent(
-          `Defeated an enemy at ${currentState.location.name}`,
-          currentState.storyProgress.currentAct,
-        );
+        const act = getAct(currentState.location.x, currentState.location.y);
+        if (!currentState.activeEnemy) {
+          const enemy = spawnEnemy(act);
+          currentState.setActiveEnemy(enemy);
+        }
+        const enemyState = useGameStore.getState().activeEnemy;
+        if (enemyState) {
+          const playerDmg = Math.floor(Math.random() * 8) + 8 + act * 3;
+          currentState.damageEnemy(playerDmg);
+          const afterAttack = useGameStore.getState();
+          if (!afterAttack.activeEnemy) {
+            currentState.updateStoryProgress({
+              enemiesDefeated: currentState.storyProgress.enemiesDefeated + 1,
+            });
+            currentState.addStoryEvent(
+              `Defeated ${enemyState.name} at ${currentState.location.name}`,
+              currentState.storyProgress.currentAct,
+            );
+            currentState.addMessage({
+              role: 'god',
+              content: `HOSTILE TERMINATED: ${enemyState.name} has been deleted.\n\n// THE ARCHITECT: "Fine. But there are more where that came from."`,
+              mood: 'mystic',
+            });
+          } else {
+            currentState.addMessage({
+              role: 'god',
+              content: `You deal ${playerDmg} damage to ${enemyState.name}. It has ${afterAttack.activeEnemy.hp}/${enemyState.maxHp} integrity remaining.\n\n// THE ARCHITECT: "It's still standing. Keep swinging — or run."`,
+              mood: 'danger',
+            });
+          }
+        }
         currentState.addTrace(8);
       }
 
@@ -485,6 +559,8 @@ export default function GameScreen() {
       }
 
       if (response.intent === 'move') {
+        currentState.setActiveEnemy(null);
+
         const dir = parseDirection(text);
         const dx = dir ? dir.dx : [-1, 0, 1][Math.floor(Math.random() * 3)];
         const dy = dir ? dir.dy : [-1, 0, 1][Math.floor(Math.random() * 3)];
@@ -503,6 +579,21 @@ export default function GameScreen() {
           currentState.reduceTrace(8);
         } else {
           currentState.reduceTrace(3);
+        }
+
+        const moveAct = getAct(newX, newY);
+        const ambushChance = moveAct === 1 ? 0.1 : moveAct === 2 ? 0.25 : 0.35;
+        if (moveAct >= 2 && Math.random() < ambushChance) {
+          const ambushEnemy = spawnEnemy(moveAct);
+          const latestState = useGameStore.getState();
+          latestState.setActiveEnemy(ambushEnemy);
+          latestState.addMessage({
+            role: 'god',
+            content: `AMBUSH! A ${ambushEnemy.name} materializes and attacks! [${ambushEnemy.hp} HP]\n\n// THE ARCHITECT: "Did you think you could just walk around my system? I see everything."`,
+            mood: 'danger',
+          });
+          const ambushDmg = Math.floor(Math.random() * ambushEnemy.damage) + 3;
+          latestState.setHp(latestState.hp - ambushDmg);
         }
 
         const newAct = getAct(newX, newY);
@@ -530,12 +621,20 @@ export default function GameScreen() {
       const finalState = useGameStore.getState();
 
       if (finalState.storyProgress.traceLevel >= 100 && finalState.gameStatus === 'playing') {
-        const act = getAct(finalState.location.x, finalState.location.y);
-        const traceDmg = act === 1 ? -15 : act === 2 ? -20 : -25;
+        const traceAct = getAct(finalState.location.x, finalState.location.y);
+        const traceDmg = traceAct === 1 ? -15 : traceAct === 2 ? -20 : -25;
         finalState.setHp(finalState.hp + traceDmg);
+        const hunterEnemy: EnemyState = {
+          name: 'Hunter Protocol Elite',
+          hp: 50 + traceAct * 10,
+          maxHp: 50 + traceAct * 10,
+          damage: 8 + traceAct * 3,
+          act: traceAct,
+        };
+        finalState.setActiveEnemy(hunterEnemy);
         finalState.addMessage({
           role: 'god',
-          content: 'ALERT: TRACE COMPLETE. Hunter Protocol activated.\n\nA squad of Hunters materializes around you. They hit hard and fast. The Architect found you.\n\n// THE ARCHITECT: "I told you I was watching. You left too many footprints. Now hold still — this will hurt."',
+          content: `ALERT: TRACE COMPLETE. Hunter Protocol activated.\n\nA ${hunterEnemy.name} materializes — ${hunterEnemy.hp} HP. It hits hard. The Architect found you.\n\n// THE ARCHITECT: "I told you I was watching. You left too many footprints. Now fight or die."`,
           mood: 'danger',
         });
         finalState.updateStoryProgress({ traceLevel: 30 });
@@ -839,6 +938,7 @@ export default function GameScreen() {
                   <View style={styles.commandContent}>
                     <StatBars hp={hp} mana={mana} />
                     <TraceMeter traceLevel={storyProgress.traceLevel} />
+                    {activeEnemy && <EnemyBar enemy={activeEnemy} />}
                     <CommandDeck onSend={handleCommand} disabled={isThinking || isGameEnded} />
                   </View>
                 ) : (
@@ -849,6 +949,7 @@ export default function GameScreen() {
                   >
                     <StatBars hp={hp} mana={mana} />
                     <TraceMeter traceLevel={storyProgress.traceLevel} />
+                    {activeEnemy && <EnemyBar enemy={activeEnemy} />}
                     <View style={styles.worldSection}>
                       <WorldMap location={location} visitedTiles={visitedTiles} />
                     </View>
