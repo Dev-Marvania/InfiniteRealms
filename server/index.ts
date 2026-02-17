@@ -5,7 +5,6 @@ import * as fs from "fs";
 import * as path from "path";
 
 const app = express();
-const log = console.log;
 
 declare module "http" {
   interface IncomingMessage {
@@ -29,7 +28,6 @@ function setupCors(app: express.Application) {
 
     const origin = req.header("origin");
 
-    // Allow localhost origins for Expo web development (any port)
     const isLocalhost =
       origin?.startsWith("http://localhost:") ||
       origin?.startsWith("http://127.0.0.1:");
@@ -55,46 +53,14 @@ function setupCors(app: express.Application) {
 function setupBodyParsing(app: express.Application) {
   app.use(
     express.json({
+      limit: "10kb",
       verify: (req, _res, buf) => {
         req.rawBody = buf;
       },
     }),
   );
 
-  app.use(express.urlencoded({ extended: false }));
-}
-
-function setupRequestLogging(app: express.Application) {
-  app.use((req, res, next) => {
-    const start = Date.now();
-    const path = req.path;
-    let capturedJsonResponse: Record<string, unknown> | undefined = undefined;
-
-    const originalResJson = res.json;
-    res.json = function (bodyJson, ...args) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.apply(res, [bodyJson, ...args]);
-    };
-
-    res.on("finish", () => {
-      if (!path.startsWith("/api")) return;
-
-      const duration = Date.now() - start;
-
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    });
-
-    next();
-  });
+  app.use(express.urlencoded({ extended: false, limit: "10kb" }));
 }
 
 function getAppName(): string {
@@ -119,7 +85,7 @@ function serveExpoManifest(platform: string, res: Response) {
   if (!fs.existsSync(manifestPath)) {
     return res
       .status(404)
-      .json({ error: `Manifest not found for platform: ${platform}` });
+      .json({ error: "Manifest not found" });
   }
 
   res.setHeader("expo-protocol-version", "1");
@@ -148,9 +114,6 @@ function serveLandingPage({
   const baseUrl = `${protocol}://${host}`;
   const expsUrl = `${host}`;
 
-  log(`baseUrl`, baseUrl);
-  log(`expsUrl`, expsUrl);
-
   const html = landingPageTemplate
     .replace(/BASE_URL_PLACEHOLDER/g, baseUrl)
     .replace(/EXPS_URL_PLACEHOLDER/g, expsUrl)
@@ -169,8 +132,6 @@ function configureExpoAndLanding(app: express.Application) {
   );
   const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
   const appName = getAppName();
-
-  log("Serving static Expo files with dynamic manifest routing");
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith("/api")) {
@@ -200,8 +161,6 @@ function configureExpoAndLanding(app: express.Application) {
 
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
-
-  log("Expo routing: Checking expo-platform header on / and /manifest");
 }
 
 function setupErrorHandler(app: express.Application) {
@@ -213,22 +172,18 @@ function setupErrorHandler(app: express.Application) {
     };
 
     const status = error.status || error.statusCode || 500;
-    const message = error.message || "Internal Server Error";
-
-    console.error("Internal Server Error:", err);
 
     if (res.headersSent) {
       return next(err);
     }
 
-    return res.status(status).json({ message });
+    return res.status(status).json({ message: "Internal Server Error" });
   });
 }
 
 (async () => {
   setupCors(app);
   setupBodyParsing(app);
-  setupRequestLogging(app);
 
   configureExpoAndLanding(app);
 
@@ -244,7 +199,7 @@ function setupErrorHandler(app: express.Application) {
       reusePort: true,
     },
     () => {
-      log(`express server serving on port ${port}`);
+      console.log(`express server serving on port ${port}`);
     },
   );
 })();
